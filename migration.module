@@ -1,22 +1,57 @@
 <?php // $Id$
 
-function migration_exit() {
+/**
+ * Implementation of hook_menu().
+ */
+function migration_menu() {
+  $items = array();
+
+  $items['admin/settings/migration'] = array(
+    'title' => 'Migration',
+    'description' => 'Settings for the Migration module',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('migration_settings_form'),
+    'access arguments' => array('administer migration'),
+  );
+
+  return $items;
+}
+
+function migration_settings_form($form_state) {
+  $form = array();
+
+  $form['migration_module_name'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Module name'),
+    '#description' => t('Enter the module name used in the hook_update_N call.'),
+    '#default_value' => variable_get('migration_module_name', migration_id_safe(variable_get('site_name', 'Drupal'))),
+  );
+
+  return system_settings_form($form);
+}
+
+function migration_id_safe($string) {
+  $search = array(' ', '-');
+  return strtolower(str_replace($search, '', $string));
+}
+
+function migration_exit($destination = NULL) {
   global $queries;
 
-  // TODO: Retrieve next update N from system table.
-  $count = 6000;
+  $count = migration_get_next_id();
+
   $page_queries = "function mymodule_update_$count() {\n";
-	foreach ($queries as $query) {
-  	$sql = preg_replace("|.*\n\/\*.*\*\/ |", '', $query[0]);
-		if (_migration_keepquery($sql)) {
-			// TODO: make this a hash so we save only unique queries.
-			$page_queries .= _migration_format_query_for_output($sql);
-		}
-	}
+  foreach ($queries as $query) {
+    $sql = preg_replace("|.*\n\/\*.*\*\/ |", '', $query[0]);
+    if (migration_keepquery($sql)) {
+      // TODO: make this a hash so we save only unique queries.
+      $page_queries .= migration_query_row($sql);
+    }
+  }
   $page_queries .= "  return \$sql;\n}\n";
 
   // TODO: Make this file location configurable.
-  if (_migration_file_append_data($page_queries, file_directory_path() . '/queryfile.sql')) {
+  if (migration_file_append_data($page_queries, file_directory_path() . '/queryfile.sql')) {
     $file = file_directory_path() . '/queryfile.sql';
     $output = t("Migration file saved at !file", array('!file' => realpath($file)));
   }
@@ -24,10 +59,14 @@ function migration_exit() {
     $output = t("Error saving sql file.");
   }
 
-	print $output;
+  if (TRUE) {
+    $output .= migration_format_update_hook($queries);
+  }
+
+  //print $output;
 }
 
-function _migration_file_append_data($input, $file) { 
+function migration_file_append_data($input, $file) {
   //$data = file_get_contents($file);
   $data .= $input;
   $return = file_save_data($data, $file, FILE_EXISTS_REPLACE);
@@ -35,17 +74,18 @@ function _migration_file_append_data($input, $file) {
   return $return;
 }
 
-function _migration_format_query_for_output($sql) {
+function migration_query_row($sql) {
   $output .= '  $sql = array(' . $sql . ");\n";
   return $output;
 }
 
-function _migration_keepquery($query) {
-	// TODO: Either make this configurable or ensure we're excluding the right stuff.
+function migration_keepquery($query) {
+  // TODO: Either make this configurable or ensure we're excluding the right stuff.
 
-	$process = TRUE;
-	$query = trim($query);
+  $process = TRUE;
+  $query = trim($query);
 
+  // Starts with...
   if (stripos($query, 'SELECT') === 0 ||
       stripos($query, 'DELETE') === 0 ||
       stripos($query, 'INSERT INTO cache') === 0 ||
@@ -63,8 +103,10 @@ function _migration_keepquery($query) {
       stripos($query, 'UPDATE menu_link') === 0) {
     $process = FALSE;
   }
-  
+
+  // Starts with...
   if (stripos($query, 'UPDATE variable') === 0) {
+    // Contains...
     if (stripos($query, 'update_last_check') === TRUE ||
         stripos($query, 'poormanscron_lastrun') === TRUE ||
         stripos($query, 'node_cron_comments_scale') === TRUE ||
@@ -75,5 +117,35 @@ function _migration_keepquery($query) {
     }
   }
 
-	return $process;
+  return $process;
+}
+
+function migration_format_update_hook($queries) {
+  $count = migration_get_next_id();
+
+  $output = '<code><pre>';
+  $output .= "function mymodule_update_$count() {\n";
+  $output .= '  $sql = array();';
+
+  foreach ($queries as $data) {
+    $bits = explode("\n", $data[0]);
+    $query = preg_replace('|\/\*\s[a-z\s:_]*\*\/\s|', '', $bits[1]);
+
+    $process = migration_keepquery($query);
+    if ($process) {
+      $output .= "\n";
+      $output .= "  /* $bits[0] */\n";
+      $output .= '  $sql[] = update_sql("' . $query . '");';
+    }
+
+  }
+  $output .= "\n  return \$sql;\n}\n";
+  $output .= '</pre></code>';
+  
+  return $output;
+}
+
+function migration_get_next_id() {
+  // TODO: Retrieve next update N from system table.
+  return 6000;
 }
