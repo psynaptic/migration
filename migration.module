@@ -1,0 +1,78 @@
+<?php // $Id$
+
+function migration_exit() {
+  global $queries;
+
+	foreach ($queries as $query) {
+  	$sql = preg_replace("|.*\n\/\*.*\*\/ |", '', $query[0]);
+
+		if (_migration_keepquery($sql)) {
+			// TODO: make this a hash so we save only unique queries
+			$page_queries .= _migration_format_query_for_output($sql);
+		}
+	}
+
+  // TODO: Make this file location configurable.
+  if (_migration_file_append_data($page_queries, file_directory_path() . '/queryfile.sql')) {
+    $file = file_directory_path() . '/queryfile.sql';
+    $output = t("Migration file saved at !file", array('!file' => realpath($file)));
+  }
+  else {
+    $output = t("Error saving sql file.");
+  }
+
+  // TODO: Unkludge this later: make it use system message if a debug setting is on or something.
+	print $output;
+}
+
+function _migration_file_append_data($input, $file) { 
+  //$data = file_get_contents($file);
+  $data .= $input;
+  $return = file_save_data($data, $file, FILE_EXISTS_REPLACE);
+
+  return $return;
+}
+
+function _migration_format_query_for_output($sql) {
+  // TODO: Change this to be valid php for putting into a hook_update_N(); 
+
+  return ($sql . "\n");
+}
+
+function _migration_keepquery($query) {
+	// TODO: Filter out all the queries we dont want - for now we guess at it.
+	// Later this should be configurable by table, perhaps there are tablename
+	// regexes stored in the db?
+
+	$process = TRUE;
+	$query = trim($query);
+
+  if (stripos($query, 'SELECT') === 0 ||
+      stripos($query, 'DELETE') === 0 ||
+      stripos($query, 'INSERT INTO cache') === 0 ||
+      stripos($query, 'INSERT INTO search_') === 0 ||
+      stripos($query, 'INSERT INTO watchdog') === 0 ||
+      stripos($query, 'INSERT INTO system') === 0 ||
+      strpos($query, 'UPDATE cache') === 0 ||
+      strpos($query, 'UPDATE history') === 0 ||
+      strpos($query, 'SHOW TABLES') === 0 ||
+      strpos($query, 'UPDATE system') === 0 ||
+      strpos($query, 'UPDATE sessions') === 0 ||
+      strpos($query, 'UPDATE users SET access =') === 0 ||
+      strpos($query, 'UPDATE search_total') === 0) {
+    $process = FALSE;
+  }
+  
+  if (strpos($query, 'UPDATE variable') === 0) {
+    if (strpos($query, 'update_last_check') === TRUE ||
+        strpos($query, 'poormanscron_lastrun') === TRUE ||
+        strpos($query, 'node_cron_comments_scale') === TRUE ||
+        strpos($query, 'node_cron_views_scale') === TRUE ||
+        strpos($query, 'node_cron_last') === TRUE ||
+        strpos($query, 'cron_last') === TRUE) {
+      $process = FALSE;
+    }
+  }
+
+	return $process;
+}
