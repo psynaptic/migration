@@ -3,14 +3,17 @@
 function migration_exit() {
   global $queries;
 
+  // TODO: Retrieve next update N from system table.
+  $count = 6000;
+  $page_queries = "function mymodule_update_$count() {\n";
 	foreach ($queries as $query) {
   	$sql = preg_replace("|.*\n\/\*.*\*\/ |", '', $query[0]);
-
 		if (_migration_keepquery($sql)) {
-			// TODO: make this a hash so we save only unique queries
+			// TODO: make this a hash so we save only unique queries.
 			$page_queries .= _migration_format_query_for_output($sql);
 		}
 	}
+  $page_queries .= "  return \$sql;\n}\n";
 
   // TODO: Make this file location configurable.
   if (_migration_file_append_data($page_queries, file_directory_path() . '/queryfile.sql')) {
@@ -21,7 +24,6 @@ function migration_exit() {
     $output = t("Error saving sql file.");
   }
 
-  // TODO: Unkludge this later: make it use system message if a debug setting is on or something.
 	print $output;
 }
 
@@ -34,15 +36,12 @@ function _migration_file_append_data($input, $file) {
 }
 
 function _migration_format_query_for_output($sql) {
-  // TODO: Change this to be valid php for putting into a hook_update_N(); 
-
-  return ($sql . "\n");
+  $output .= '  $sql = array(' . $sql . ");\n";
+  return $output;
 }
 
 function _migration_keepquery($query) {
-	// TODO: Filter out all the queries we dont want - for now we guess at it.
-	// Later this should be configurable by table, perhaps there are tablename
-	// regexes stored in the db?
+	// TODO: Either make this configurable or ensure we're excluding the right stuff.
 
 	$process = TRUE;
 	$query = trim($query);
@@ -53,23 +52,25 @@ function _migration_keepquery($query) {
       stripos($query, 'INSERT INTO search_') === 0 ||
       stripos($query, 'INSERT INTO watchdog') === 0 ||
       stripos($query, 'INSERT INTO system') === 0 ||
-      strpos($query, 'UPDATE cache') === 0 ||
-      strpos($query, 'UPDATE history') === 0 ||
-      strpos($query, 'SHOW TABLES') === 0 ||
-      strpos($query, 'UPDATE system') === 0 ||
-      strpos($query, 'UPDATE sessions') === 0 ||
-      strpos($query, 'UPDATE users SET access =') === 0 ||
-      strpos($query, 'UPDATE search_total') === 0) {
+      stripos($query, 'INSERT INTO menu_router') === 0 ||
+      stripos($query, 'UPDATE cache') === 0 ||
+      stripos($query, 'UPDATE history') === 0 ||
+      stripos($query, 'SHOW TABLES') === 0 ||
+      stripos($query, 'UPDATE system') === 0 ||
+      stripos($query, 'UPDATE sessions') === 0 ||
+      stripos($query, 'UPDATE users SET access =') === 0 ||
+      stripos($query, 'UPDATE search_total') === 0 ||
+      stripos($query, 'UPDATE menu_link') === 0) {
     $process = FALSE;
   }
   
-  if (strpos($query, 'UPDATE variable') === 0) {
-    if (strpos($query, 'update_last_check') === TRUE ||
-        strpos($query, 'poormanscron_lastrun') === TRUE ||
-        strpos($query, 'node_cron_comments_scale') === TRUE ||
-        strpos($query, 'node_cron_views_scale') === TRUE ||
-        strpos($query, 'node_cron_last') === TRUE ||
-        strpos($query, 'cron_last') === TRUE) {
+  if (stripos($query, 'UPDATE variable') === 0) {
+    if (stripos($query, 'update_last_check') === TRUE ||
+        stripos($query, 'poormanscron_lastrun') === TRUE ||
+        stripos($query, 'node_cron_comments_scale') === TRUE ||
+        stripos($query, 'node_cron_views_scale') === TRUE ||
+        stripos($query, 'node_cron_last') === TRUE ||
+        stripos($query, 'cron_last') === TRUE) {
       $process = FALSE;
     }
   }
