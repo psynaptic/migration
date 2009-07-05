@@ -52,7 +52,7 @@ function migration_exit($destination = NULL) {
     $functions[$querystruct['function']] = $querystruct['function'];
     $usernames[$querystruct['username']] = $querystruct['username'];
     $querystrings[$querystruct['querystring']] = $querystruct['querystring'];
-    $tablename = migration_get_tablename($querystruct['querystring']); 
+    $tablename = migration_get_tablename($querystruct['querystring']);
     $tablenames[$tablename] = $tablename;
 
     // TODO: for debugging - get rid of this later
@@ -83,7 +83,7 @@ function migration_exit($destination = NULL) {
     // else {
     //   $output .= t("Error saving sql file.");
     // }
-    // 
+    //
     // if (migration_file_append_data(implode("\n",$tablenames), "tablenames.mig")) {
     //   $output = t("Migration file saved at !file", array('!file' => realpath($migration_get_filename)));
     // }
@@ -125,7 +125,7 @@ function migration_global_queries_processor() {
       print("<br><i>new: '" . $newquery['querystring'] . "'</i><br>old:<b> '" . $matchequery['querystring'] . "'</b>");
     }
 
-    $matchedquery['querystring'] = $newquery['querystring'];   
+    $matchedquery['querystring'] = $newquery['querystring'];
     $splitqueries[] = $matchedquery;
   }
 
@@ -159,7 +159,7 @@ function migration_filterqueries($querystruct) {
       // its *not* a select, so it will change the database.
       // next lets find out if we care if it changes the db.
 
-      // First we check our configured table name list. 
+      // First we check our configured table name list.
       // If its in the "do not record list" we ditch it.
       $tablename = migration_get_tablename($query['querystring']);
       if (migration_is_table_to_record($tablename)) {
@@ -198,7 +198,7 @@ function migration_is_table_to_record($tablename) {
     'watchdogcache',
     'watchdog',
   );
-  
+
   if (in_array($tablename, $skiptables)) {
     // TODO: Debug
     // print_r ("<H1>irrelevant table $tablename<BR></H1>");
@@ -281,7 +281,7 @@ function migration_format_update_hook($queries) {
   }
   $output .= "\n  return \$sql;\n}\n";
   $output .= '</pre></code>';
-  
+
   return $output;
 }
 
