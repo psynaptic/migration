@@ -80,11 +80,11 @@ function migration_exit($destination = NULL) {
   // Log the sql strings to disk.
   if (TRUE) {
 
-    if (migration_file_append_data(implode("\n", $querystrings), "queries.sql")) {
-      $output .= t("Migration file saved at !file", array('!file' => realpath($migration_get_filename)));
+    if (migration_file_append_data(implode("\n", $querystrings), 'queries.sql')) {
+      $output .= t('Migration file saved at !file', array('!file' => realpath($migration_get_filename)));
     }
     else {
-      $output .= t("Error saving sql file.");
+      $output .= t('Error saving sql file.');
     }
 
     // if (migration_file_append_data(implode("\n",$funcquery), "funcquery.sql")) {
@@ -127,8 +127,8 @@ function migration_global_queries_processor() {
   foreach ($queries as $query) {
     // Option s - Treat string as a single line.
     preg_match("|(?<function>.*)\n\/\* (?<username>.*) : .*\*\/ (?<querystring>.*)|s", $query[0], $matchedquery);
-    $subnewquery['querystring'] = preg_replace("|\n|s", "", $matchedquery['querystring']);
-    $newquery['querystring'] = preg_replace("|^ *|s", "", $subnewquery['querystring']);
+    $subnewquery['querystring'] = preg_replace("|\n|s", '', $matchedquery['querystring']);
+    $newquery['querystring'] = preg_replace("|^ *|s", '', $subnewquery['querystring']);
 
     // DEBUG
     if (!$newquery['querystring'] === $matchedquery['querystring']) {
@@ -154,7 +154,7 @@ function migration_file_append_data($input, $filename) {
 }
 
 function migration_query_row($sql) {
-  $output .= '  $sql = array(' . $sql . ");\n";
+  $output .= "  $sql = array($sql);\n";
   return $output;
 }
 
@@ -285,7 +285,7 @@ function migration_format_update_hook($queries) {
     if ($process) {
       $output .= "\n";
       $output .= "  /* $bits[0] */\n";
-      $output .= '  $sql[] = update_sql("' . $query . '");';
+      $output .= "  $sql[] = update_sql($query);";
     }
 
   }
