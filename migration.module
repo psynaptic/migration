@@ -272,7 +272,7 @@ function migration_format_update_hook($queries) {
     if ($process) {
       $output .= "\n";
       $output .= "  /* $bits[0] */\n";
-      $output .= "  $sql[] = update_sql($query);";
+      $output .= '  $sql[] = update_sql($query);';
     }
 
   }
