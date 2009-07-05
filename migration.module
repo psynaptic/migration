@@ -17,8 +17,12 @@ function migration_menu() {
   return $items;
 }
 
+/**
+ * Admin settings form.
+ */
 function migration_settings_form($form_state) {
   $form = array();
+
   $form['migration_module_name'] = array(
     '#type' => 'textfield',
     '#title' => t('Module name'),
@@ -35,62 +39,59 @@ function migration_id_safe($string) {
 }
 
 /**
- * Implementation of hook_exit()
- * migration saves all the queries that occurred during this pageview
+ * Implementation of hook_exit().
+ *
+ * Migration saves all the queries that occurred during this page view.
  */
-
 function migration_exit($destination = NULL) {
 
   $page_queries = migration_global_queries_processor();
-
   $valid_queries = migration_filterqueries($page_queries);
 
-  foreach ($valid_queries as $querystruct){
+  foreach ($valid_queries as $querystruct) {
     $functions[$querystruct['function']] = $querystruct['function'];
     $usernames[$querystruct['username']] = $querystruct['username'];
     $querystrings[$querystruct['querystring']] = $querystruct['querystring'];
     $tablename = migration_get_tablename($querystruct['querystring']); 
     $tablenames[$tablename] = $tablename;
 
-    //TODO for debugging jget rid of this later
-    //$funcquery[$querystruct['function'] . $querystruct['querystring']] = $querystruct['function'] . $querystruct['querystring'];
+    // TODO: for debugging - get rid of this later
+    // $funcquery[$querystruct['function'] . $querystruct['querystring']] = $querystruct['function'] . $querystruct['querystring'];
   }
 
-  /*dprint_r(count($functions));
-  dprint_r(count($usernames));
-  dprint_r(count($querystrings));
-  dprint_r($functions);
-  dprint_r($usernames);
-  dprint_r($querystrings);
-  */
+  // dprint_r(count($functions));
+  // dprint_r(count($usernames));
+  // dprint_r(count($querystrings));
+  // dprint_r($functions);
+  // dprint_r($usernames);
+  // dprint_r($querystrings);
 
-  //Log the sql strings to disk
+
+  // Log the sql strings to disk.
   if (TRUE) {
 
-    if (migration_file_append_data(implode("\n",$querystrings), "queries.sql")) {
+    if (migration_file_append_data(implode("\n", $querystrings), "queries.sql")) {
       $output .= t("Migration file saved at !file", array('!file' => realpath($migration_get_filename)));
     }
     else {
       $output .= t("Error saving sql file.");
     }
 
-/*
-    if (migration_file_append_data(implode("\n",$funcquery), "funcquery.sql")) {
-      $output .= t("Migration file saved at !file", array('!file' => realpath($migration_get_filename)));
-    }
-    else {
-      $output .= t("Error saving sql file.");
-    }
+    // if (migration_file_append_data(implode("\n",$funcquery), "funcquery.sql")) {
+    //   $output .= t("Migration file saved at !file", array('!file' => realpath($migration_get_filename)));
+    // }
+    // else {
+    //   $output .= t("Error saving sql file.");
+    // }
+    // 
+    // if (migration_file_append_data(implode("\n",$tablenames), "tablenames.mig")) {
+    //   $output = t("Migration file saved at !file", array('!file' => realpath($migration_get_filename)));
+    // }
+    // else {
+    //   $output = t("Error saving sql file.");
+    // }
 
-    if (migration_file_append_data(implode("\n",$tablenames), "tablenames.mig")) {
-      $output = t("Migration file saved at !file", array('!file' => realpath($migration_get_filename)));
-    }
-    else {
-      $output = t("Error saving sql file.");
-    }
-*/
-
-  //options are output to screen each pageview.
+    // Options are output to screen each page view.
     if (TRUE) {
       $output .= migration_format_update_hook($queries);
     }
@@ -99,40 +100,40 @@ function migration_exit($destination = NULL) {
 }
 
 function migration_get_filename($file) {
-    //TODO Should be a configurable option that comes from the database. 
-    $filename = file_directory_path() . '/' . $file;
-    return $filename;
+  // TODO: Should be a configurable option that comes from the database.
+  $filename = file_directory_path() . '/' . $file;
+  return $filename;
 }
 
-/*
-*Takes the global queryies and extracts the query strings, the username, and the function called.
-*@return a hefty datastructure
-*/
-
-function migration_global_queries_processor(){
+/**
+ * Takes the global queries and extracts the query strings, the username, and the function called.
+ *
+ * @return
+ *   An array containing the query data.
+ */
+function migration_global_queries_processor() {
   global $queries;
-  foreach ($queries as $query){
-    //regex explain: using % instead of / the 's' at the end makes it all act as if it were one line.
-    preg_match("%(?<function>.*)\n\/\* (?<username>.*) : .*\*\/ (?<querystring>.*)%s", $query[0], $matchedquery);
-    $subnewquery['querystring'] = preg_replace("/\n/s", "", $matchedquery['querystring']);
-    $newquery['querystring'] = preg_replace("/^ */s", "", $subnewquery['querystring']);
-    
 
-//DEBUG
-    if (!$newquery['querystring'] === $matchedquery['querystring']){
+  foreach ($queries as $query) {
+    // Option s - Treat string as a single line.
+    preg_match("|(?<function>.*)\n\/\* (?<username>.*) : .*\*\/ (?<querystring>.*)|s", $query[0], $matchedquery);
+    $subnewquery['querystring'] = preg_replace("|\n|s", "", $matchedquery['querystring']);
+    $newquery['querystring'] = preg_replace("|^ *|s", "", $subnewquery['querystring']);
 
+    // DEBUG
+    if (!$newquery['querystring'] === $matchedquery['querystring']) {
       print("<br><i>new: '" . $newquery['querystring'] . "'</i><br>old:<b> '" . $matchequery['querystring'] . "'</b>");
     }
-        $matchedquery['querystring'] = $newquery['querystring'];
-   
+
+    $matchedquery['querystring'] = $newquery['querystring'];   
     $splitqueries[] = $matchedquery;
   }
 
   return $splitqueries;
 }
 
-function migration_file_append_data($input,$filename) {
-  //TODO fix to get this from the database
+function migration_file_append_data($input, $filename) {
+  // TODO: Fix to get this from the database.
   $file = file_directory_path() . '/' . $filename;
   $file = realpath($file);
   $data = file_get_contents($file);
@@ -147,76 +148,71 @@ function migration_query_row($sql) {
   return $output;
 }
 
-/*
- * This function strips out the individual querystructs
- * That we dont want to keep.
- *
+/**
+ * This function strips out the individual querystructs that we dont want to
+ * keep.
  */
+function migration_filterqueries($querystruct) {
+  // Filter by querystring
+  foreach ($querystruct as $query) {
+    if (!migration_is_select($query['querystring'])) {
+      // its *not* a select, so it will change the database.
+      // next lets find out if we care if it changes the db.
 
-function migration_filterqueries($querystruct){
-  //Filter by querystring
-  foreach ($querystruct as $query){
-    if (!migration_is_select($query['querystring'])){
-      //its *not* a select, so it will change the database.
-      //next lets find out if we care if it changes the db.
-
-      //First we check our configured table name list. 
-      //If its in the "do not record list" we ditch it.
+      // First we check our configured table name list. 
+      // If its in the "do not record list" we ditch it.
       $tablename = migration_get_tablename($query['querystring']);
-      if (migration_is_table_to_record($tablename)){
-      //Secondly we check the configured function list
-      //we will delete by function if we know there are functions we dont care about
-      //Finally, if we want to filter by username we can.. later.. later..
+      if (migration_is_table_to_record($tablename)) {
+      // Secondly we check the configured function list
+      // we will delete by function if we know there are functions we dont care about
+      // Finally, if we want to filter by username we can.. later.. later..
         $filteredstruct[] = $query;
-          
       }
     }
   }
   return $filteredstruct;
 }
- 
-function migration_get_tablename($sqlstring){
-  //dprint_r("querystring: " . $sqlstring);
 
+function migration_get_tablename($sqlstring) {
+  // dprint_r("querystring: " . $sqlstring);
   preg_match("/(INSERT INTO|DELETE FROM|ALTER TABLE|UPDATE|DROP TABLE|CREATE TABLE|LOCK TABLES|CREATE DOMAIN|CREATE INDEX|CREATE UNIQUE INDEX|CREATE SEQUENCE|DROP INDEX) (?<tablename>.*?)($| ).*/", $sqlstring, $splitqueries[]);
-  //dprint_r("wordup yo");
-  //dprint_r($splitqueries);
+  // dprint_r("wordup yo");
+  // dprint_r($splitqueries);
   return $splitqueries[0]['tablename'];
 }
 
-function migration_is_table_to_record($tablename){
-  //TODO record them all for now.
-  //get tablename list from the database
-  //do we store the good tables or the bad ones..
-  $skiptables = array( 'cache_views',
-                  'cache',
-                  'cache_content',
-                  'cache_menu',
-                  'cache_update',
-                  'cache_block',
-                  'cache_filter',
-                  'cache_page',
-                  'menu_router',
-                  'menu_links',
-                  'watchdogcache',
-                  'watchdog',
-                  );
+function migration_is_table_to_record($tablename) {
+  // TODO: Record them all for now. Get table name list from the database.
+  // Do we store the good tables or the bad ones?
+  $skiptables = array(
+    'cache_views',
+    'cache',
+    'cache_content',
+    'cache_menu',
+    'cache_update',
+    'cache_block',
+    'cache_filter',
+    'cache_page',
+    'menu_router',
+    'menu_links',
+    'watchdogcache',
+    'watchdog',
+  );
   
-  if (in_array($tablename, $skiptables)){
-    //TODO DEBUG
-    //print_r ("<H1>irrelevant table $tablename<BR></H1>");
+  if (in_array($tablename, $skiptables)) {
+    // TODO: Debug
+    // print_r ("<H1>irrelevant table $tablename<BR></H1>");
     return FALSE;
   }
   return TRUE;
 }
 
-
-function migration_is_select($sqlstring){
+function migration_is_select($sqlstring) {
   $process = FALSE;
-  //filter out all the queries beginning with SELECT.
-  //Note that we dont want to skip *all* queries that contain SELECT
-  //Just the ones that start with SELECT. (Subselects are fine)
-  if (stripos($sqlstring, 'SELECT') === 0){
+  // Filter out all the queries beginning with SELECT.
+  // Note that we dont want to skip *all* queries that contain SELECT.
+  // Just the ones that start with SELECT (sub-selects are fine).
+  if (stripos($sqlstring, 'SELECT') === 0) {
     $process = TRUE;
   }
   return $process;
