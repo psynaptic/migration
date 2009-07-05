@@ -53,16 +53,8 @@ function migration_exit($destination = NULL) {
     $tablenames[$tablename] = $tablename;
 
     //TODO for debugging jget rid of this later
-    //$funcquery[$querystruct['function'] . $querystruct['querystring']] = $querystruct['function'] . $querystruct['querystring'];
+    //$funcquery[$querystruct['function'] . $querystruct['querystring']] = $querystruct['function'] . ":" .  $querystruct['querystring'];
   }
-
-  /*dprint_r(count($functions));
-  dprint_r(count($usernames));
-  dprint_r(count($querystrings));
-  dprint_r($functions);
-  dprint_r($usernames);
-  dprint_r($querystrings);
-  */
 
   //Log the sql strings to disk
   if (TRUE) {
@@ -73,22 +65,6 @@ function migration_exit($destination = NULL) {
     else {
       $output .= t("Error saving sql file.");
     }
-
-/*
-    if (migration_file_append_data(implode("\n",$funcquery), "funcquery.sql")) {
-      $output .= t("Migration file saved at !file", array('!file' => realpath($migration_get_filename)));
-    }
-    else {
-      $output .= t("Error saving sql file.");
-    }
-
-    if (migration_file_append_data(implode("\n",$tablenames), "tablenames.mig")) {
-      $output = t("Migration file saved at !file", array('!file' => realpath($migration_get_filename)));
-    }
-    else {
-      $output = t("Error saving sql file.");
-    }
-*/
 
   //options are output to screen each pageview.
     if (TRUE) {
@@ -112,19 +88,13 @@ function migration_get_filename($file) {
 function migration_global_queries_processor(){
   global $queries;
   foreach ($queries as $query){
-    //regex explain: using % instead of / the 's' at the end makes it all act as if it were one line.
+    //regex explain: using % instead of /, the 's' extends the match past single lines.
     preg_match("%(?<function>.*)\n\/\* (?<username>.*) : .*\*\/ (?<querystring>.*)%s", $query[0], $matchedquery);
-    $subnewquery['querystring'] = preg_replace("/\n/s", "", $matchedquery['querystring']);
-    $newquery['querystring'] = preg_replace("/^ */s", "", $subnewquery['querystring']);
+    //strip initial space
+    $matchedquery['querystring'] = preg_replace("/^ */s", "", $matchedquery['querystring']);
+    //strip linefeeds
+    $matchedquery['querystring'] = preg_replace("/\n/s", "", $matchedquery['querystring']);
     
-
-//DEBUG
-    if (!$newquery['querystring'] === $matchedquery['querystring']){
-
-      print("<br><i>new: '" . $newquery['querystring'] . "'</i><br>old:<b> '" . $matchequery['querystring'] . "'</b>");
-    }
-        $matchedquery['querystring'] = $newquery['querystring'];
-   
     $splitqueries[] = $matchedquery;
   }
 
@@ -176,11 +146,8 @@ function migration_filterqueries($querystruct){
 }
  
 function migration_get_tablename($sqlstring){
-  //dprint_r("querystring: " . $sqlstring);
 
-  preg_match("/(INSERT INTO|DELETE FROM|ALTER TABLE|UPDATE|DROP TABLE|CREATE TABLE|LOCK TABLES|CREATE DOMAIN|CREATE INDEX|CREATE UNIQUE INDEX|CREATE SEQUENCE|DROP INDEX) (?<tablename>.*?)($| ).*/", $sqlstring, $splitqueries[]);
-  //dprint_r("wordup yo");
-  //dprint_r($splitqueries);
+  preg_match("/(INSERT INTO|DELETE FROM|ALTER TABLE|UPDATE|DROP VIEW|CREATE VIEW|DROP TABLE|CREATE TABLE|LOCK TABLES|CREATE DOMAIN|CREATE INDEX|CREATE UNIQUE INDEX|CREATE SEQUENCE|DROP INDEX) (?<tablename>.*?)($| ).*/", $sqlstring, $splitqueries[]);
   return $splitqueries[0]['tablename'];
 }
 
@@ -189,17 +156,26 @@ function migration_is_table_to_record($tablename){
   //get tablename list from the database
   //do we store the good tables or the bad ones..
   $skiptables = array( 'cache_views',
-                  'cache',
-                  'cache_content',
-                  'cache_menu',
-                  'cache_update',
-                  'cache_block',
-                  'cache_filter',
-                  'cache_page',
-                  'menu_router',
-                  'menu_links',
-                  'watchdogcache',
-                  'watchdog',
+                      'cache',
+                      'cache_filter',
+                      'cache_content',
+                      'cache_calendar_ical',
+                      'cache_menu',
+                      'cache_page',
+                      'cache_block',
+                      'cache_update',
+                      'cache_form',
+                      'sessions',
+                      'search_dataset',
+                      'search_index',
+                      'search_keywords_log',
+                      'search_total',
+                      'watchdog',
+                      'accesslog',
+                      'devel_queries',
+                      'devel_times',
+                      'menu_router',
+                      'menu_links',
                   );
   
   if (in_array($tablename, $skiptables)){
