@@ -11,6 +11,13 @@
  */
 
 /**
+ * Implementation of hook_perm().
+ */
+function migration_perm() {
+  return array('administer migration');
+}
+
+/**
  * Implementation of hook_menu().
  */
 function migration_menu() {
@@ -22,25 +29,44 @@ function migration_menu() {
     'page callback' => 'drupal_get_form',
     'page arguments' => array('migration_settings_form'),
     'access arguments' => array('administer migration'),
+    'file' => 'migration.admin.inc',
+  );
+
+  $items['admin/settings/migration/settings'] = array(
+    'title' => 'Settings',
+    'type' => MENU_DEFAULT_LOCAL_TASK,
+    'weight' => 0,
+  );
+
+  $items['admin/settings/migration/tables'] = array(
+    'title' => 'Monitored Tables',
+    'type' => MENU_LOCAL_TASK,
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('migration_tables_list_form'),
+    'access arguments' => array('administer migration'),
+    'file' => 'migration.admin.inc',
+    'weight' => 1,
+  );
+
+  $items['admin/settings/migration/start_monitor'] = array(
+    'title' => 'Start monitoring',
+    'type' => MENU_CALLBACK,
+    'page callback' => 'migration_monitor_control',
+    'page arguments' => array('start'),
+    'access arguments' => array('administer migration'),
+    'file' => 'migration.admin.inc',
+  );
+
+  $items['admin/settings/migration/stop_monitor'] = array(
+    'title' => 'Stop monitoring',
+    'type' => MENU_CALLBACK,
+    'page callback' => 'migration_monitor_control',
+    'page arguments' => array('stop'),
+    'access arguments' => array('administer migration'),
+    'file' => 'migration.admin.inc',
   );
 
   return $items;
-}
-
-/**
- * Admin settings form.
- */
-function migration_settings_form($form_state) {
-  $form = array();
-
-  $form['migration_module_name'] = array(
-    '#type' => 'textfield',
-    '#title' => t('Module name'),
-    '#description' => t('Enter the module name used in the hook_update_N call.'),
-    '#default_value' => variable_get('migration_module_name', migration_id_safe(variable_get('site_name', 'Drupal'))),
-  );
-
-  return system_settings_form($form);
 }
 
 function migration_id_safe($string) {
@@ -56,11 +82,9 @@ function migration_id_safe($string) {
 function migration_exit($destination = NULL) {
 
   global $queries;
-
   if (variable_get('dev_query', FALSE) && is_array($queries)) {
     $page_queries = migration_global_queries_processor($queries);
     $valid_queries = migration_filterqueries($page_queries);
-  
     foreach ($valid_queries as $querystruct) {
       $functions[$querystruct['function']] = $querystruct['function'];
       $usernames[$querystruct['username']] = $querystruct['username'];
@@ -69,40 +93,30 @@ function migration_exit($destination = NULL) {
       $querystrings[] = $querystruct['querystring'];
       $tablename = migration_get_tablename($querystruct['querystring']);
       $tablenames[$tablename] = $tablename;
-  
+
       // TODO: for debugging - get rid of this later
-      $funcquery[$querystruct['function'] . $querystruct['querystring']] = $querystruct['function'] . " : " . $querystruct['querystring'];
-  
+      // $funcquery[$querystruct['function'] . $querystruct['querystring']] = $querystruct['function'] . $querystruct['querystring'];
     }
+
+    if (variable_get('migration_query_monitor', FALSE)) {
+      // Log the sql strings to disk.
+      if (is_array($valid_queries)) {
+        if (migration_file_append_data(implode("\n", $querystrings), 'queries.sql')) {
+          $output .= t('Migration file saved at !file', array('!file' => realpath($migration_get_filename)));
+        }
+        else {
+          $output .= t('Error saving sql file.');
+        }
+      }
+    } 
   
-    // Log the sql strings to disk.
-    if (is_array($valid_queries)) {
-  
-      if (migration_file_append_data(implode("\n", $querystrings), 'queries.sql')) {
-        $output .= t('Migration file saved at !file', array('!file' => realpath($migration_get_filename)));
-      }
-      else {
-        $output .= t('Error saving sql file.');
-      }
-  
-      if (migration_file_append_data(implode("\n", $funcquery), 'funcqueries.sql')) {
-        $output .= t('Migration file saved at !file', array('!file' => realpath($migration_get_filename)));
-      }
-      else {
-        $output .= t('Error saving sql file.');
-      }
-  
-      if (TRUE) {
-      //$output .= migration_format_update_hook($queries);
-      }
-    }
-    //print $output;
+    $output .= migration_format_update_hook($queries);
+    drupal_set_message($output, 'status');
   }
 }
 
 function migration_get_filename($file) {
-  // TODO: Should be a configurable option that comes from the database.
-  $filename = file_directory_path() . '/' . $file;
+  $filename = variable_get('migration_directory_path', file_directory_path() . '/migration') . '/' . $file;
   return $filename;
 }
 
@@ -120,7 +134,7 @@ function migration_global_queries_processor($queries) {
     $matchedquery['querystring'] = preg_replace("/^\s*/s", "", $matchedquery['querystring']);
     //strip linefeeds
     $matchedquery['querystring'] = preg_replace("/\n/s", "", $matchedquery['querystring']);
-    
+
     $splitqueries[] = $matchedquery;
   }
 
@@ -129,9 +143,13 @@ function migration_global_queries_processor($queries) {
 }
 
 function migration_file_append_data($input, $filename) {
-  // TODO: Fix to get this from the database.
-  $file = file_directory_path() . '/' . $filename;
-  $file = realpath($file);
+  if(!file_exists(getcwd() . '/' . variable_get('migration_directory_path', file_directory_path() . '/migration/') . $filename)) {
+    $file = file_create_filename($filename, getcwd() . '/' . variable_get('migration_directory_path', file_directory_path() . '/migration'));
+  }
+  else {
+    $file = getcwd() . '/' . variable_get('migration_directory_path', file_directory_path() . '/migration/') . $filename;
+  }
+  
   $data = file_get_contents($file);
   $data .= $input;
   $return = file_save_data($data, $file, FILE_EXISTS_REPLACE);
@@ -167,9 +185,8 @@ function migration_filterqueries($querystruct) {
   }
   return $filteredstruct;
 }
- 
-function migration_get_tablename($sqlstring){
 
+function migration_get_tablename($sqlstring){
   preg_match("/(INSERT INTO|DELETE FROM|ALTER TABLE|UPDATE|DROP VIEW|CREATE VIEW|DROP TABLE|CREATE TABLE|LOCK TABLES|CREATE DOMAIN|CREATE INDEX|CREATE UNIQUE INDEX|CREATE SEQUENCE|DROP INDEX) (?<tablename>.*?)($| ).*/", $sqlstring, $splitqueries[]);
   return $splitqueries[0]['tablename'];
 }
@@ -177,36 +194,8 @@ function migration_get_tablename($sqlstring){
 function migration_is_table_to_record($tablename) {
   // TODO: Record them all for now. Get table name list from the database.
   // Do we store the good tables or the bad ones?
-  // Record the bad ones.  This will eventually be configurable 
-  $skiptables = array(
-    'cache_views',
-    'cache',
-    'cache_content',
-    'cache_menu',
-    'cache_admin_menu',
-    'cache_update',
-    'cache_block',
-    'cache_filter',
-    'cache_page',
-    'history',
-    'menu_router',
-    'menu_links',
-    'watchdogcache',
-    'watchdog',
-    'cache_calendar_ical',
-    'cache_form',
-    'sessions',
-    'search_dataset',
-    'search_index',
-    'search_keywords_log',
-    'search_total',
-    'accesslog',
-    'devel_queries',
-    'devel_times',
-    'menu_router',
-    'menu_links',
-
-  );
+  // Record the bad ones.  
+  $skiptables = variable_get('migration_database_tables', migration_get_default_tables());
 
   if (in_array($tablename, $skiptables)) {
     // TODO: Debug
@@ -280,6 +269,7 @@ function migration_keepquery($query) {
         stripos($query, 'node_cron_comments_scale') === TRUE ||
         stripos($query, 'node_cron_views_scale') === TRUE ||
         stripos($query, 'node_cron_last') === TRUE ||
+        stripos($query, 'migration_query_monitor') === TRUE ||
         stripos($query, 'cron_last') === TRUE) {
       $process = FALSE;
     }
@@ -317,4 +307,52 @@ function migration_format_update_hook($queries) {
 function migration_get_next_id() {
   // TODO: Retrieve next update N from system table.
   return 6000;
+}
+
+
+function migration_init() {
+  drupal_add_js(drupal_get_path('module', 'migration') . '/migration.js');
+}
+
+function migration_footer($main = 0) {
+  $output = '<div style="float: right; clear: both;" id="migration_monitor_switch">';
+  if (variable_get('migration_query_monitor', FALSE)) {
+    $output .= '<p><a id="migration_stop_monitor">Stop Query Monitor</a></p>';
+  }
+  else {
+    $output .= '<p><a id="migration_start_monitor">Start Query Monitor</a></p>';
+  }
+  $output .= '</div>';
+  return $output;
+}
+
+function migration_get_default_tables() {
+  return array(
+    'cache_views',
+    'cache',
+    'cache_content',
+    'cache_menu',
+    'cache_admin_menu',
+    'cache_update',
+    'cache_block',
+    'cache_filter',
+    'cache_page',
+    'cache_calendar_ical',
+    'cache_form',
+    'history',
+    'menu_router',
+    'menu_links',
+    'watchdogcache',
+    'watchdog',
+    'sessions',
+    'search_dataset',
+    'search_index',
+    'search_keywords_log',
+    'search_total',
+    'accesslog',
+    'devel_queries',
+    'devel_times',
+    'menu_router',
+    'menu_links',
+  );
 }
