@@ -1,39 +1,43 @@
 if (Drupal.jsEnabled) {
   $(document).ready(function() {
-    $('#migration_start_monitor').click(function(){
-      $.getJSON('/admin/settings/migration/start_monitor', function(json) {
-        $('#migration_monitor_switch').html(json.divHtml);
+    $('#migration-start-monitor').click(function() {
+      $.getJSON(Drupal.settings.basePath + 'migration/start', function(json) {
+        $('#migration-monitor-switch').html(json.divHtml);
         reapplyStopEvent();
         alert(json.response);
       });
+      return false;
     });
-    $('#migration_stop_monitor').click(function(){
-      $.getJSON('/admin/settings/migration/stop_monitor', function(json) {
-        $('#migration_monitor_switch').html(json.divHtml);
+
+    $('#migration-stop-monitor').click(function() {
+      $.getJSON(Drupal.settings.basePath + 'migration/stop', function(json) {
+        $('#migration-monitor-switch').html(json.divHtml);
         reapplyStartEvent();
         alert(json.response);
       });
+      return false;
     });
   })
   
   function reapplyStartEvent() {
-    $('#migration_start_monitor').click(function(){
-      $.getJSON('/admin/settings/migration/start_monitor', function(json) {
-        $('#migration_monitor_switch').html(json.divHtml);
+    $('#migration-start-monitor').click(function() {
+      $.getJSON(Drupal.settings.basePath + 'migration/start', function(json) {
+        $('#migration-monitor-switch').html(json.divHtml);
         reapplyStopEvent();
         alert(json.response);
       });
+      return false;
     });
   }
   
   function reapplyStopEvent() {
-    $('#migration_stop_monitor').click(function(){
-      $.getJSON('/admin/settings/migration/stop_monitor', function(json) {
-        $('#migration_monitor_switch').html(json.divHtml);
+    $('#migration-stop-monitor').click(function() {
+      $.getJSON(Drupal.settings.basePath + 'migration/stop', function(json) {
+        $('#migration-monitor-switch').html(json.divHtml);
         reapplyStartEvent();
         alert(json.response);
       });
+      return false;
     });
   }
-  
 }

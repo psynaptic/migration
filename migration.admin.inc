@@ -71,14 +71,14 @@ function migration_monitor_control($action) {
     variable_set('migration_query_monitor', TRUE);
     print drupal_json(array(
       'response' => 'Migration Query Monitor: RUNNING',
-      'divHtml' => '<p><a id="migration_stop_monitor">Stop Query Monitor</a></p>',
+      'divHtml' => '<a href="#" id="migration-stop-monitor">Stop Query Monitor</a>',
     ));
   }
   elseif ($action == 'stop') {
     variable_set('migration_query_monitor', FALSE);
     print drupal_json(array(
       'response' => 'Migration Query Monitor: STOPPED',
-      'divHtml' => '<p><a id="migration_start_monitor">Start Query Monitor</a></p>',
+      'divHtml' => '<a href="#" id="migration-start-monitor">Start Query Monitor</a>',
     ));
   }
   else {

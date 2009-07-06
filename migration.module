@@ -48,7 +48,7 @@ function migration_menu() {
     'weight' => 1,
   );
 
-  $items['admin/settings/migration/start_monitor'] = array(
+  $items['migration/start'] = array(
     'title' => 'Start monitoring',
     'type' => MENU_CALLBACK,
     'page callback' => 'migration_monitor_control',
@@ -57,7 +57,7 @@ function migration_menu() {
     'file' => 'migration.admin.inc',
   );
 
-  $items['admin/settings/migration/stop_monitor'] = array(
+  $items['migration/stop'] = array(
     'title' => 'Stop monitoring',
     'type' => MENU_CALLBACK,
     'page callback' => 'migration_monitor_control',
@@ -292,14 +292,16 @@ function migration_init() {
 }
 
 function migration_footer($main = 0) {
-  $output = '<div style="float: right; clear: both;" id="migration_monitor_switch">';
+  $output = '<div style="position: fixed; bottom: 10px; right: 10px; font-size: 0.9em" id="migration-monitor-switch">';
+
   if (variable_get('migration_query_monitor', FALSE)) {
-    $output .= '<p><a id="migration_stop_monitor">Stop Query Monitor</a></p>';
+    $output .= '<a href="#" id="migration-stop-monitor">Stop Query Monitor</a>';
   }
   else {
-    $output .= '<p><a id="migration_start_monitor">Start Query Monitor</a></p>';
+    $output .= '<a href="#" id="migration-start-monitor">Start Query Monitor</a>';
   }
   $output .= '</div>';
+
   return $output;
 }
 
