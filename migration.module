@@ -55,35 +55,49 @@ function migration_id_safe($string) {
  */
 function migration_exit($destination = NULL) {
 
-  $page_queries = migration_global_queries_processor();
-  $valid_queries = migration_filterqueries($page_queries);
+  global $queries;
 
-  foreach ($valid_queries as $querystruct) {
-    $functions[$querystruct['function']] = $querystruct['function'];
-    $usernames[$querystruct['username']] = $querystruct['username'];
-    $querystrings[$querystruct['querystring']] = $querystruct['querystring'];
-    $tablename = migration_get_tablename($querystruct['querystring']);
-    $tablenames[$tablename] = $tablename;
-
-    // TODO: for debugging - get rid of this later
-    // $funcquery[$querystruct['function'] . $querystruct['querystring']] = $querystruct['function'] . $querystruct['querystring'];
+  if (variable_get('dev_query', FALSE) && is_array($queries)) {
+    $page_queries = migration_global_queries_processor($queries);
+    $valid_queries = migration_filterqueries($page_queries);
+  
+    foreach ($valid_queries as $querystruct) {
+      $functions[$querystruct['function']] = $querystruct['function'];
+      $usernames[$querystruct['username']] = $querystruct['username'];
+      //Logic fail.. putting the querstrings into a hash may reorder them as well as eliminate patterns like "INSERT A, DELETE A, INSERT A" and turn it into INSERT A, DELETE A"
+      //$querystrings[$querystruct['querystring']] = $querystruct['querystring'];
+      $querystrings[] = $querystruct['querystring'];
+      $tablename = migration_get_tablename($querystruct['querystring']);
+      $tablenames[$tablename] = $tablename;
+  
+      // TODO: for debugging - get rid of this later
+      $funcquery[$querystruct['function'] . $querystruct['querystring']] = $querystruct['function'] . " : " . $querystruct['querystring'];
+  
+    }
+  
+    // Log the sql strings to disk.
+    if (is_array($valid_queries)) {
+  
+      if (migration_file_append_data(implode("\n", $querystrings), 'queries.sql')) {
+        $output .= t('Migration file saved at !file', array('!file' => realpath($migration_get_filename)));
+      }
+      else {
+        $output .= t('Error saving sql file.');
+      }
+  
+      if (migration_file_append_data(implode("\n", $funcquery), 'funcqueries.sql')) {
+        $output .= t('Migration file saved at !file', array('!file' => realpath($migration_get_filename)));
+      }
+      else {
+        $output .= t('Error saving sql file.');
+      }
+  
+      if (TRUE) {
+      //$output .= migration_format_update_hook($queries);
+      }
+    }
+    //print $output;
   }
-
-  // Log the sql strings to disk.
-  if (TRUE) {
-
-    if (migration_file_append_data(implode("\n", $querystrings), 'queries.sql')) {
-      $output .= t('Migration file saved at !file', array('!file' => realpath($migration_get_filename)));
-    }
-    else {
-      $output .= t('Error saving sql file.');
-    }
-
-    if (TRUE) {
-      $output .= migration_format_update_hook($queries);
-    }
-  }
-  print $output;
 }
 
 function migration_get_filename($file) {
@@ -98,19 +112,19 @@ function migration_get_filename($file) {
  * @return
  *   An array containing the query data.
  */
-function migration_global_queries_processor() {
-  global $queries;
+function migration_global_queries_processor($queries) {
   foreach ($queries as $query){
     //regex explain: using % instead of /, the 's' extends the match past single lines.
     preg_match("%(?<function>.*)\n\/\* (?<username>.*) : .*\*\/ (?<querystring>.*)%s", $query[0], $matchedquery);
     //strip initial space
-    $matchedquery['querystring'] = preg_replace("/^ */s", "", $matchedquery['querystring']);
+    $matchedquery['querystring'] = preg_replace("/^\s*/s", "", $matchedquery['querystring']);
     //strip linefeeds
     $matchedquery['querystring'] = preg_replace("/\n/s", "", $matchedquery['querystring']);
     
     $splitqueries[] = $matchedquery;
   }
 
+    dprint_r($splitqueries);
   return $splitqueries;
 }
 
@@ -121,7 +135,6 @@ function migration_file_append_data($input, $filename) {
   $data = file_get_contents($file);
   $data .= $input;
   $return = file_save_data($data, $file, FILE_EXISTS_REPLACE);
-
   return $return;
 }
 
@@ -137,14 +150,14 @@ function migration_query_row($sql) {
 function migration_filterqueries($querystruct) {
   // Filter by querystring
   foreach ($querystruct as $query) {
-    if (!migration_is_select($query['querystring'])) {
+    if (!migration_is_select_or_show($query['querystring'])) {
       // its *not* a select, so it will change the database.
       // next lets find out if we care if it changes the db.
 
       // First we check our configured table name list.
       // If its in the "do not record list" we ditch it.
       $tablename = migration_get_tablename($query['querystring']);
-      if (migration_is_table_to_record($tablename)) {
+      if ((migration_is_table_to_record($tablename))&&(migration_is_valid_function($query['function']))) {
       // Secondly we check the configured function list
       // we will delete by function if we know there are functions we dont care about
       // Finally, if we want to filter by username we can.. later.. later..
@@ -164,8 +177,7 @@ function migration_get_tablename($sqlstring){
 function migration_is_table_to_record($tablename) {
   // TODO: Record them all for now. Get table name list from the database.
   // Do we store the good tables or the bad ones?
-  // Record the bad ones.  This will eventually be configurable in the
-  // interface much like backup/migrate.  
+  // Record the bad ones.  This will eventually be configurable 
   $skiptables = array(
     'cache_views',
     'cache',
@@ -204,12 +216,32 @@ function migration_is_table_to_record($tablename) {
   return TRUE;
 }
 
-function migration_is_select($sqlstring) {
+function migration_is_valid_function($function){
+
+  // TODO: Record them all for now. Get table name list from the database.
+  // Hmm.. this is difficult. do we really want to run a slew of regexes against these?
+  // perhaps we could sort the regexes by function type..
+
+  $skipfunctions = array(
+    'system_theme_data',
+    'module_rebuild_cache',
+  );
+
+  if (in_array($function, $skipfunctions)) {
+    // TODO: Debug
+    //print_r ("<H1>irrelevant function $function<BR></H1>");
+    return FALSE;
+  }
+  return TRUE;
+}
+
+function migration_is_select_or_show($sqlstring) {
   $process = FALSE;
-  // Filter out all the queries beginning with SELECT.
+  // Filter out all the queries beginning with SELECT. or SHOW.
   // Note that we dont want to skip *all* queries that contain SELECT.
   // Just the ones that start with SELECT (sub-selects are fine).
-  if (stripos($sqlstring, 'SELECT') === 0) {
+  if (stripos($sqlstring, 'SELECT') === 0 ||
+      stripos($sqlstring, 'SHOW') === 0 ) {
     $process = TRUE;
   }
   return $process;
