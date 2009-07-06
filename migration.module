@@ -245,14 +245,12 @@ function migration_is_valid_function($function) {
  *   TRUE if query begines with a certain keyword.
  */
 function migration_is_select_or_show($query) {
-  $process = FALSE;
-
   if (stripos($query, 'SELECT') === 0 ||
       stripos($query, 'SHOW') === 0) {
-    $process = TRUE;
+    return TRUE;
   }
 
-  return $process;
+  return FALSE;
 }
 
 function migration_keepquery($query) {
