@@ -93,34 +93,3 @@ function migration_get_tables() {
   }
   return $tables;
 }
-
-function migration_get_default_tables() {
-  return array(
-    'cache_views',
-    'cache',
-    'cache_content',
-    'cache_menu',
-    'cache_admin_menu',
-    'cache_update',
-    'cache_block',
-    'cache_filter',
-    'cache_page',
-    'cache_calendar_ical',
-    'cache_form',
-    'history',
-    'menu_router',
-    'menu_links',
-    'watchdogcache',
-    'watchdog',
-    'sessions',
-    'search_dataset',
-    'search_index',
-    'search_keywords_log',
-    'search_total',
-    'accesslog',
-    'devel_queries',
-    'devel_times',
-    'menu_router',
-    'menu_links',
-  );
-}
