@@ -14,7 +14,7 @@
  * Implementation of hook_perm().
  */
 function migration_perm() {
-  return array('administer migration');
+  return array('administer migration', 'view migration control link');
 }
 
 /**
@@ -349,17 +349,19 @@ function migration_init() {
  * Adds the start/stop link to the page.
  */
 function migration_footer($main = 0) {
-  $output = '<div id="migration-monitor-switch">';
+  if (user_access('view migration control link')) {
+    $output = '<div id="migration-monitor-switch">';
 
-  if (variable_get('migration_query_monitor', FALSE)) {
-    $output .= '<a href="#" id="migration-stop-monitor">Stop Query Monitor</a>';
-  }
-  else {
-    $output .= '<a href="#" id="migration-start-monitor">Start Query Monitor</a>';
-  }
-  $output .= '</div>';
+    if (variable_get('migration_query_monitor', FALSE)) {
+      $output .= '<a href="#" id="migration-stop-monitor">Stop Query Monitor</a>';
+    }
+    else {
+      $output .= '<a href="#" id="migration-start-monitor">Start Query Monitor</a>';
+    }
+    $output .= '</div>';
 
-  return $output;
+    return $output;
+  }
 }
 
 /**
