@@ -11,6 +11,14 @@
  */
 
 /**
+ * Implementation of hook_perm().
+ */
+function migration_perm() {
+  return array('administer migration');
+}
+
+
+/**
  * Implementation of hook_menu().
  */
 function migration_menu() {
@@ -22,25 +30,44 @@ function migration_menu() {
     'page callback' => 'drupal_get_form',
     'page arguments' => array('migration_settings_form'),
     'access arguments' => array('administer migration'),
+    'file' => 'migration.admin.inc',
+  );
+  
+  $items['admin/settings/migration/settings'] = array(
+    'title' => 'Settings',
+    'type' => MENU_DEFAULT_LOCAL_TASK,
+    'weight' => 0,
+  );
+  
+  $items['admin/settings/migration/tables'] = array(
+    'title' => 'Monitored Tables',
+    'type' => MENU_LOCAL_TASK,
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('migration_tables_list_form'),
+    'access arguments' => array('administer migration'),
+    'file' => 'migration.admin.inc',
+    'weight' => 1,
+  );
+  
+  $items['admin/settings/migration/start_monitor'] = array(
+    'title' => 'Start monitoring',
+    'type' => MENU_CALLBACK,
+    'page callback' => 'migration_monitor_control',
+    'page arguments' => array('start'),
+    'access arguments' => array('administer migration'),
+    'file' => 'migration.admin.inc',
+  );
+  
+  $items['admin/settings/migration/stop_monitor'] = array(
+    'title' => 'Stop monitoring',
+    'type' => MENU_CALLBACK,
+    'page callback' => 'migration_monitor_control',
+    'page arguments' => array('stop'),
+    'access arguments' => array('administer migration'),
+    'file' => 'migration.admin.inc',
   );
 
   return $items;
-}
-
-/**
- * Admin settings form.
- */
-function migration_settings_form($form_state) {
-  $form = array();
-
-  $form['migration_module_name'] = array(
-    '#type' => 'textfield',
-    '#title' => t('Module name'),
-    '#description' => t('Enter the module name used in the hook_update_N call.'),
-    '#default_value' => variable_get('migration_module_name', migration_id_safe(variable_get('site_name', 'Drupal'))),
-  );
-
-  return system_settings_form($form);
 }
 
 function migration_id_safe($string) {
@@ -70,25 +97,22 @@ function migration_exit($destination = NULL) {
   }
 
   // Log the sql strings to disk.
-  if (TRUE) {
-
-    if (migration_file_append_data(implode("\n", $querystrings), 'queries.sql')) {
-      $output .= t('Migration file saved at !file', array('!file' => realpath($migration_get_filename)));
-    }
-    else {
-      $output .= t('Error saving sql file.');
-    }
-
-    if (TRUE) {
-      $output .= migration_format_update_hook($queries);
-    }
+  if (migration_file_append_data(implode("\n", $querystrings), 'queries.sql')) {
+    $output .= t('Migration file saved at !file', array('!file' => realpath($migration_get_filename)));
   }
-  print $output;
+  else {
+    $output .= t('Error saving sql file.');
+  }
+
+  if (TRUE) {
+    $output .= migration_format_update_hook($queries);
+  }
+  
+  drupal_set_message($output, 'status');
 }
 
 function migration_get_filename($file) {
-  // TODO: Should be a configurable option that comes from the database.
-  $filename = file_directory_path() . '/' . $file;
+  $filename = variable_get('migration_directory_path', file_directory_path() . '/migration') . '/' . $file;
   return $filename;
 }
 
@@ -285,4 +309,13 @@ function migration_format_update_hook($queries) {
 function migration_get_next_id() {
   // TODO: Retrieve next update N from system table.
   return 6000;
+}
+
+
+function migration_init() {
+  drupal_add_js(drupal_get_path('module', 'migration') . '/migration.js');
+}
+
+function migration_footer($main = 0) {
+  return '<div style="float: right;"><p><a id="migration_start_monitor">Start Monitor</a></p><p><a id="migration_stop_monitor">Stop Monitor</a></p></div>';
 }
