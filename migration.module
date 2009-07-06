@@ -108,8 +108,8 @@ function migration_exit($destination = NULL) {
           $output .= t('Error saving sql file.');
         }
       }
-    } 
-  
+    }
+
     $output .= migration_format_update_hook($queries);
     drupal_set_message($output, 'status');
   }
@@ -170,7 +170,7 @@ function migration_file_append_data($input, $filename) {
   else {
     $file = getcwd() . '/' . variable_get('migration_directory_path', file_directory_path() . '/migration') . $filename;
   }
-  
+
   $data = file_get_contents($file);
   $data .= $input;
   $return = file_save_data($data, $file, FILE_EXISTS_REPLACE);
@@ -234,7 +234,7 @@ function migration_get_tablename($sqlstring) {
 function migration_is_table_to_record($tablename) {
   // TODO: Record them all for now. Get table name list from the database.
   // Do we store the good tables or the bad ones?
-  // Record the bad ones.  
+  // Record the bad ones.
   $skiptables = variable_get('migration_database_tables', migration_get_default_tables());
 
   if (in_array($tablename, $skiptables)) {

@@ -20,7 +20,7 @@ if (Drupal.jsEnabled) {
       return false;
     });
   })
-  
+
   function reapplyStartEvent() {
     $('#migration-start-monitor').click(function() {
       $.getJSON(Drupal.settings.basePath + 'migration/start', function(json) {
@@ -31,7 +31,7 @@ if (Drupal.jsEnabled) {
       return false;
     });
   }
-  
+
   function reapplyStopEvent() {
     $('#migration-stop-monitor').click(function() {
       $.getJSON(Drupal.settings.basePath + 'migration/stop', function(json) {

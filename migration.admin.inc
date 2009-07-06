@@ -5,7 +5,6 @@
  * Migration module administrative pages
  */
 
-
 /**
  * Admin settings form.
  */
