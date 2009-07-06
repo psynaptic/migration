@@ -36,9 +36,6 @@ function migration_settings_form($form_state) {
  */
 function migration_tables_list_form($form_state) {
   $form = array();
-  
-  $path = drupal_get_path('module', 'migration');
-  drupal_add_css($path . '/migration.css');
 
   $form['migration_filter_mode'] = array(
     '#type' => 'radios',

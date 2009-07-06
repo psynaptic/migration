@@ -3,3 +3,10 @@
 #migration-tables-list-form .multicolumncheckboxesradios-column {
   width: 25%;
 }
+
+#migration-monitor-switch {
+  position: fixed;
+  bottom: 10px;
+  right: 10px;
+  font-size: 0.9em
+}

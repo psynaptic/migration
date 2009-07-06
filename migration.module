@@ -86,7 +86,7 @@ function migration_exit($destination = NULL) {
 
     $page_queries = migration_global_queries_processor($queries);
     $valid_queries = migration_filterqueries($page_queries);
-dpm($page_queries);
+
     foreach ($valid_queries as $querystruct) {
 
       $functions[$querystruct['function']] = $querystruct['function'];
@@ -185,7 +185,9 @@ function migration_filterqueries($querystruct) {
       // First we check our configured table name list.
       // If its in the "do not record list" we ditch it.
       $tablename = migration_get_tablename($query['query']);
+
       if ((migration_is_table_to_record($tablename)) && (migration_is_valid_function($query['function']))) {
+
       // Secondly we check the configured function list
       // we will delete by function if we know there are functions we dont care about
       // Finally, if we want to filter by username we can.. later.. later..
@@ -326,13 +328,15 @@ function migration_get_next_id() {
   return 6000;
 }
 
-
 function migration_init() {
-  drupal_add_js(drupal_get_path('module', 'migration') . '/migration.js');
+  $path = drupal_get_path('module', 'migration');
+
+  drupal_add_css($path . '/migration.css');
+  drupal_add_js($path . '/migration.js');
 }
 
 function migration_footer($main = 0) {
-  $output = '<div style="position: fixed; bottom: 10px; right: 10px; font-size: 0.9em" id="migration-monitor-switch">';
+  $output = '<div id="migration-monitor-switch">';
 
   if (variable_get('migration_query_monitor', FALSE)) {
     $output .= '<a href="#" id="migration-stop-monitor">Stop Query Monitor</a>';
