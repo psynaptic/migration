@@ -138,7 +138,7 @@ function migration_global_queries_processor($queries) {
     $splitqueries[] = $matchedquery;
   }
 
-    dprint_r($splitqueries);
+  //dprint_r($splitqueries);
   return $splitqueries;
 }
 
@@ -224,15 +224,22 @@ function migration_is_valid_function($function){
   return TRUE;
 }
 
-function migration_is_select_or_show($sqlstring) {
+/**
+ * Filters queries that begin with certain keywords.
+ *
+ * @param $query
+ *   The query to test.
+ * @return
+ *   TRUE if query begines with a certain keyword.
+ */
+function migration_is_select($query) {
   $process = FALSE;
-  // Filter out all the queries beginning with SELECT. or SHOW.
-  // Note that we dont want to skip *all* queries that contain SELECT.
-  // Just the ones that start with SELECT (sub-selects are fine).
-  if (stripos($sqlstring, 'SELECT') === 0 ||
-      stripos($sqlstring, 'SHOW') === 0 ) {
+
+  if (stripos($query, 'SELECT') === 0 ||
+      stripos($query, 'SHOW') === 0) {
     $process = TRUE;
   }
+
   return $process;
 }
 
