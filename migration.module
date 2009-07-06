@@ -6,7 +6,7 @@
  *
  * The Migration module is intended to help keep development, staging and
  * production databases in sync. This is done by collecting queries and
- * formatting them as a hook_update_N functon for running on the target
+ * formatting them as a hook_update_N function for running on the target
  * site.
  */
 
@@ -14,7 +14,7 @@
  * Implementation of hook_perm().
  */
 function migration_perm() {
-  return array('administer migration');
+  return array('administer migration', 'view query monitor start/stop link');
 }
 
 /**
@@ -69,15 +69,10 @@ function migration_menu() {
   return $items;
 }
 
-function migration_id_safe($string) {
-  $search = array(' ', '-');
-  return strtolower(str_replace($search, '', $string));
-}
-
 /**
  * Implementation of hook_exit().
  *
- * Migration saves all the queries that occurred during this page view.
+ * Collect all queries and stash them in a query file.
  */
 function migration_exit($destination = NULL) {
   global $queries;
@@ -122,13 +117,21 @@ function migration_exit($destination = NULL) {
   }
 }
 
+/**
+ * Get the relative path to the query file.
+ *
+ * @param $file
+ *   The name of the file for which to get the path.
+ * @return
+ *   The path to the query file.
+ */
 function migration_get_filename($file) {
   $filename = variable_get('migration_directory_path', file_directory_path() . '/migration') . '/' . $file;
   return $filename;
 }
 
 /**
- * Takes the global queries and extracts the query strings, the username, and the function called.
+ * Extracts the queries, user names, and functions called.
  *
  * @return
  *   An array containing the query data.
@@ -152,17 +155,26 @@ function migration_global_queries_processor() {
   return $output;
 }
 
+/**
+ * Appends collected queries to the specified file.
+ *
+ * @param $input
+ *   The query data to append to the file.
+ * @param $filename
+ *   The name of the file to append the data.
+ * @return
+ *   A string containing the resulting filename or 0 on error.
+ */
 function migration_file_append_data($input, $filename) {
   $fullpath = getcwd() . '/' . variable_get('migration_directory_path', file_directory_path() . '/migration');
 
   if (!file_exists($fullpath . '/' . $filename)) {
     $file = file_create_filename($filename, $fullpath);
   }
-
   else {
     $file = $fullpath . '/' . $filename;
   }
-  
+
   $data = file_get_contents($file);
   $data .= $input;
   $return = file_save_data($data, $file, FILE_EXISTS_REPLACE);
@@ -170,14 +182,13 @@ function migration_file_append_data($input, $filename) {
   return $return;
 }
 
-function migration_query_row($sql) {
-  $output .= "  $sql = array($sql);\n";
-  return $output;
-}
-
 /**
- * This function strips out the individual querystructs that we dont want to
- * keep.
+ * Filters out unwanted queries.
+ *
+ * @param $querystruct
+ *   An array containing all collected queries, function names and user names.
+ * @return
+ *   An array containing only queries we want to keep.
  */
 function migration_filterqueries($querystruct) {
   $filteredstruct = array();
@@ -203,11 +214,27 @@ function migration_filterqueries($querystruct) {
   return $filteredstruct;
 }
 
+/**
+ * Finds the table name in a query.
+ *
+ * @param $sqlstring
+ *   The query from which to extract the table name.
+ * @return
+ *   The table name.
+ */
 function migration_get_tablename($sqlstring) {
   preg_match("/(INSERT INTO|DELETE FROM|ALTER TABLE|UPDATE|DROP VIEW|CREATE VIEW|DROP TABLE|CREATE TABLE|LOCK TABLES|CREATE DOMAIN|CREATE INDEX|CREATE UNIQUE INDEX|CREATE SEQUENCE|DROP INDEX) (?<tablename>.*?)($| ).*/", $sqlstring, $splitqueries[]);
   return $splitqueries[0]['tablename'];
 }
 
+/**
+ * Allows filtering by table name.
+ *
+ * @param $tablename
+ *   The table name to filter.
+ * @return
+ *   Boolean value specifying whether or not keep the query.
+ */
 function migration_is_table_to_record($tablename) {
   // TODO: Record them all for now. Get table name list from the database.
   // Do we store the good tables or the bad ones?
@@ -222,6 +249,14 @@ function migration_is_table_to_record($tablename) {
   return TRUE;
 }
 
+/**
+ * Allows filtering by function name.
+ *
+ * @param $function
+ *   The function name to filter.
+ * @return
+ *   Boolean value specifying whether or not to keep the query.
+ */
 function migration_is_valid_function($function) {
 
   // TODO: Record them all for now. Get table name list from the database.
@@ -247,61 +282,25 @@ function migration_is_valid_function($function) {
  * @param $query
  *   The query to test.
  * @return
- *   TRUE if query begines with a certain keyword.
+ *   TRUE if query begins with a certain keyword.
  */
 function migration_is_select_or_show($query) {
-  $process = FALSE;
-
   if (stripos($query, 'SELECT') === 0 ||
       stripos($query, 'SHOW') === 0) {
-    $process = TRUE;
+    return TRUE;
   }
 
-  return $process;
+  return FALSE;
 }
 
-function migration_keepquery($query) {
-  // TODO: Either make this configurable or ensure we're excluding the right stuff.
-
-  $process = TRUE;
-  $query = trim($query);
-
-  // Starts with...
-  if (stripos($query, 'SELECT') === 0 ||
-      stripos($query, 'DELETE') === 0 ||
-      stripos($query, 'INSERT INTO cache') === 0 ||
-      stripos($query, 'INSERT INTO search_') === 0 ||
-      stripos($query, 'INSERT INTO watchdog') === 0 ||
-      stripos($query, 'INSERT INTO system') === 0 ||
-      stripos($query, 'INSERT INTO menu_router') === 0 ||
-      stripos($query, 'UPDATE cache') === 0 ||
-      stripos($query, 'UPDATE history') === 0 ||
-      stripos($query, 'SHOW TABLES') === 0 ||
-      stripos($query, 'UPDATE system') === 0 ||
-      stripos($query, 'UPDATE sessions') === 0 ||
-      stripos($query, 'UPDATE users SET access =') === 0 ||
-      stripos($query, 'UPDATE search_total') === 0 ||
-      stripos($query, 'UPDATE menu_link') === 0) {
-    $process = FALSE;
-  }
-
-  // Starts with...
-  if (stripos($query, 'UPDATE variable') === 0) {
-    // Contains...
-    if (stripos($query, 'update_last_check') === TRUE ||
-        stripos($query, 'poormanscron_lastrun') === TRUE ||
-        stripos($query, 'node_cron_comments_scale') === TRUE ||
-        stripos($query, 'node_cron_views_scale') === TRUE ||
-        stripos($query, 'node_cron_last') === TRUE ||
-        stripos($query, 'migration_query_monitor') === TRUE ||
-        stripos($query, 'cron_last') === TRUE) {
-      $process = FALSE;
-    }
-  }
-
-  return $process;
-}
-
+/**
+ * Formats a hook_update_N function using collected queries.
+ *
+ * @param $queries
+ *   An array of all queries collected.
+ * @return
+ *   HTML displaying the formatted hook_update_N function.
+ */
 function migration_format_update_hook($queries) {
   global $queries;
   $count = migration_get_next_id();
@@ -314,7 +313,7 @@ function migration_format_update_hook($queries) {
     $bits = explode("\n", $data[0]);
     $query = preg_replace('|\/\*\s[a-z\s:_]*\*\/\s|', '', $bits[1]);
 
-    $process = migration_keepquery($query);
+    //$process = migration_keepquery($query);
     if ($process) {
       $output .= "\n";
       $output .= "  /* $bits[0] */\n";
@@ -328,11 +327,19 @@ function migration_format_update_hook($queries) {
   return $output;
 }
 
+/**
+ * Retrieves the number for the next update used in hook_update_N.
+ */
 function migration_get_next_id() {
   // TODO: Retrieve next update N from system table.
   return 6000;
 }
 
+/**
+ * Implementation of hook_init().
+ *
+ * Adds the JavaScript and CSS files.
+ */
 function migration_init() {
   $path = drupal_get_path('module', 'migration');
 
@@ -340,20 +347,33 @@ function migration_init() {
   drupal_add_js($path . '/migration.js');
 }
 
+/**
+ * Implementation of hook_footer().
+ *
+ * Adds the start/stop link to the page.
+ */
 function migration_footer($main = 0) {
-  $output = '<div id="migration-monitor-switch">';
+  if (user_access('view query monitor start/stop link')) {
+    $output = '<div id="migration-monitor-switch">';
 
-  if (variable_get('migration_query_monitor', FALSE)) {
-    $output .= '<a href="#" id="migration-stop-monitor">Stop Query Monitor</a>';
-  }
-  else {
-    $output .= '<a href="#" id="migration-start-monitor">Start Query Monitor</a>';
-  }
-  $output .= '</div>';
+    if (variable_get('migration_query_monitor', FALSE)) {
+      $output .= '<a href="#" id="migration-stop-monitor">Stop Query Monitor</a>';
+    }
+    else {
+      $output .= '<a href="#" id="migration-start-monitor">Start Query Monitor</a>';
+    }
+    $output .= '</div>';
 
-  return $output;
+    return $output;
+  }
 }
 
+/**
+ * Provides default values for tables to exclude from collection.
+ *
+ * @return
+ *   An array of table names.
+ */
 function migration_get_default_tables() {
   return array(
     'cache_views' => 'cache_views',
