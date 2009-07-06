@@ -14,7 +14,7 @@
  * Implementation of hook_perm().
  */
 function migration_perm() {
-  return array('administer migration', 'view migration control link');
+  return array('administer migration', 'view query monitor start/stop link');
 }
 
 /**
@@ -349,7 +349,7 @@ function migration_init() {
  * Adds the start/stop link to the page.
  */
 function migration_footer($main = 0) {
-  if (user_access('view migration control link')) {
+  if (user_access('view query monitor start/stop link')) {
     $output = '<div id="migration-monitor-switch">';
 
     if (variable_get('migration_query_monitor', FALSE)) {
