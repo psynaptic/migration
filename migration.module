@@ -87,7 +87,7 @@ function migration_exit($destination = NULL) {
   foreach ($valid_queries as $querystruct) {
     $functions[$querystruct['function']] = $querystruct['function'];
     $usernames[$querystruct['username']] = $querystruct['username'];
-    $querystrings[$querystruct['querystring']] = $querystruct['querystring'];
+    $querystrings[$querystruct['querystring']] = $querystruct['querystring'] . ';' . "\n";
     $tablename = migration_get_tablename($querystruct['querystring']);
     $tablenames[$tablename] = $tablename;
 
@@ -95,17 +95,17 @@ function migration_exit($destination = NULL) {
     // $funcquery[$querystruct['function'] . $querystruct['querystring']] = $querystruct['function'] . $querystruct['querystring'];
   }
 
-  // Log the sql strings to disk.
-  if (migration_file_append_data(implode("\n", $querystrings), 'queries.sql')) {
-    $output .= t('Migration file saved at !file', array('!file' => realpath($migration_get_filename)));
-  }
-  else {
-    $output .= t('Error saving sql file.');
+  if (variable_get('migration_query_monitor', FALSE)) {
+    // Log the sql strings to disk.
+    if (migration_file_append_data(implode("\n", $querystrings), 'queries.sql')) {
+      $output .= t('Migration file saved at !file', array('!file' => realpath($migration_get_filename)));
+    }
+    else {
+      $output .= t('Error saving sql file.');
+    }
   }
 
-  if (TRUE) {
-    $output .= migration_format_update_hook($queries);
-  }
+  $output .= migration_format_update_hook($queries);
 
   drupal_set_message($output, 'status');
 }
@@ -138,9 +138,13 @@ function migration_global_queries_processor() {
 }
 
 function migration_file_append_data($input, $filename) {
-  // TODO: Fix to get this from the database.
-  $file = file_directory_path() . '/' . $filename;
-  $file = realpath($file);
+  if(!file_exists(getcwd() . '/' . variable_get('migration_directory_path', file_directory_path() . '/migration/') . $filename)) {
+    $file = file_create_filename($filename, getcwd() . '/' . variable_get('migration_directory_path', file_directory_path() . '/migration'));
+  }
+  else {
+    $file = getcwd() . '/' . variable_get('migration_directory_path', file_directory_path() . '/migration/') . $filename;
+  }
+  
   $data = file_get_contents($file);
   $data .= $input;
   $return = file_save_data($data, $file, FILE_EXISTS_REPLACE);
@@ -242,6 +246,7 @@ function migration_keepquery($query) {
         stripos($query, 'node_cron_comments_scale') === TRUE ||
         stripos($query, 'node_cron_views_scale') === TRUE ||
         stripos($query, 'node_cron_last') === TRUE ||
+        stripos($query, 'migration_query_monitor') === TRUE ||
         stripos($query, 'cron_last') === TRUE) {
       $process = FALSE;
     }
