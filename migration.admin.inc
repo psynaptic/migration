@@ -59,7 +59,7 @@ function migration_tables_list_form($form_state) {
 }
 
 /**
- * Control the query monitor
+ * Control the query monitor.
  */
 function migration_monitor_control($action) {
   $action = strtolower($action);
@@ -83,6 +83,9 @@ function migration_monitor_control($action) {
   }
 }
 
+/**
+ * Retrieves a list of tables in the active database.
+ */
 function migration_get_tables() {
   $query = db_query('SHOW TABLES');
   while ($row = db_result($query)) {
