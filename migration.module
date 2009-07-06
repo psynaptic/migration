@@ -17,7 +17,6 @@ function migration_perm() {
   return array('administer migration');
 }
 
-
 /**
  * Implementation of hook_menu().
  */
@@ -32,13 +31,13 @@ function migration_menu() {
     'access arguments' => array('administer migration'),
     'file' => 'migration.admin.inc',
   );
-  
+
   $items['admin/settings/migration/settings'] = array(
     'title' => 'Settings',
     'type' => MENU_DEFAULT_LOCAL_TASK,
     'weight' => 0,
   );
-  
+
   $items['admin/settings/migration/tables'] = array(
     'title' => 'Monitored Tables',
     'type' => MENU_LOCAL_TASK,
@@ -48,7 +47,7 @@ function migration_menu() {
     'file' => 'migration.admin.inc',
     'weight' => 1,
   );
-  
+
   $items['admin/settings/migration/start_monitor'] = array(
     'title' => 'Start monitoring',
     'type' => MENU_CALLBACK,
@@ -57,7 +56,7 @@ function migration_menu() {
     'access arguments' => array('administer migration'),
     'file' => 'migration.admin.inc',
   );
-  
+
   $items['admin/settings/migration/stop_monitor'] = array(
     'title' => 'Stop monitoring',
     'type' => MENU_CALLBACK,
@@ -107,7 +106,7 @@ function migration_exit($destination = NULL) {
   if (TRUE) {
     $output .= migration_format_update_hook($queries);
   }
-  
+
   drupal_set_message($output, 'status');
 }
 
@@ -131,7 +130,7 @@ function migration_global_queries_processor() {
     $matchedquery['querystring'] = preg_replace("/^ */s", "", $matchedquery['querystring']);
     //strip linefeeds
     $matchedquery['querystring'] = preg_replace("/\n/s", "", $matchedquery['querystring']);
-    
+
     $splitqueries[] = $matchedquery;
   }
 
@@ -178,9 +177,8 @@ function migration_filterqueries($querystruct) {
   }
   return $filteredstruct;
 }
- 
-function migration_get_tablename($sqlstring){
 
+function migration_get_tablename($sqlstring){
   preg_match("/(INSERT INTO|DELETE FROM|ALTER TABLE|UPDATE|DROP VIEW|CREATE VIEW|DROP TABLE|CREATE TABLE|LOCK TABLES|CREATE DOMAIN|CREATE INDEX|CREATE UNIQUE INDEX|CREATE SEQUENCE|DROP INDEX) (?<tablename>.*?)($| ).*/", $sqlstring, $splitqueries[]);
   return $splitqueries[0]['tablename'];
 }
@@ -189,7 +187,7 @@ function migration_is_table_to_record($tablename) {
   // TODO: Record them all for now. Get table name list from the database.
   // Do we store the good tables or the bad ones?
   // Record the bad ones.  This will eventually be configurable in the
-  // interface much like backup/migrate.  
+  // interface much like backup/migrate.
   $skiptables = array(
     'cache_views',
     'cache',
@@ -200,13 +198,13 @@ function migration_is_table_to_record($tablename) {
     'cache_block',
     'cache_filter',
     'cache_page',
+    'cache_calendar_ical',
+    'cache_form',
     'history',
     'menu_router',
     'menu_links',
     'watchdogcache',
     'watchdog',
-    'cache_calendar_ical',
-    'cache_form',
     'sessions',
     'search_dataset',
     'search_index',
@@ -217,7 +215,6 @@ function migration_is_table_to_record($tablename) {
     'devel_times',
     'menu_router',
     'menu_links',
-
   );
 
   if (in_array($tablename, $skiptables)) {
