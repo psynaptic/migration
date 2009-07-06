@@ -28,6 +28,14 @@ function migration_settings_form($form_state) {
     '#default_value' => variable_get('migration_directory_path', $default_directory),
   );
 
+  $form['migration_hook_update_pageviews'] = array(
+    '#type' => 'radios',
+    '#title' => t('hook_update_N pageviews'),
+    '#description' => t('Display hook_update_N php code in the status message.'),
+    '#options' => array(0 => 'Hide', 1 => 'Show'),
+    '#default_value' => variable_get('migration_hook_update_pageviews', 0),
+  );
+
   return system_settings_form($form);
 }
 
@@ -54,9 +62,18 @@ function migration_tables_list_form($form_state) {
     '#checkall' => TRUE,
     '#multicolumn' => array('width' => 4),
   );
-
+  $form['#submit'][] = 'migration_tables_list_form_submit';
   return system_settings_form($form);
 }
+
+function migration_tables_list_form_submit($form, &$form_state){
+  if ($form_state['values']['migration_filter_mode'] == 1){
+    variable_set('migration_database_table_settings', migration_reverse_valid_tables($form_state['values']['migration_database_tables']));
+  }else{
+    variable_set('migration_database_table_settings', $form_state['values']['migration_database_tables']);
+  }
+}
+
 
 /**
  * Control the query monitor
@@ -89,4 +106,15 @@ function migration_get_tables() {
     $tables[$row] = $row;
   }
   return $tables;
+}
+
+function migration_reverse_valid_tables($table_array){
+  foreach (array_keys($table_array) as $tablename){
+    if ($table_array[$tablename] === $tablename){
+      $table_array[$tablename] = 0;
+    } else {
+      $table_array[$tablename] = $tablename;
+    }
+  }
+  return $table_array;
 }
