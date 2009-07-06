@@ -39,7 +39,7 @@ function migration_menu() {
   );
 
   $items['admin/settings/migration/tables'] = array(
-    'title' => 'Monitored Tables',
+    'title' => 'Monitored tables',
     'type' => MENU_LOCAL_TASK,
     'page callback' => 'drupal_get_form',
     'page arguments' => array('migration_tables_list_form'),
@@ -80,12 +80,15 @@ function migration_id_safe($string) {
  * Migration saves all the queries that occurred during this page view.
  */
 function migration_exit($destination = NULL) {
-
   global $queries;
+
   if (variable_get('dev_query', FALSE) && is_array($queries)) {
+
     $page_queries = migration_global_queries_processor($queries);
     $valid_queries = migration_filterqueries($page_queries);
+
     foreach ($valid_queries as $querystruct) {
+
       $functions[$querystruct['function']] = $querystruct['function'];
       $usernames[$querystruct['username']] = $querystruct['username'];
       //Logic fail.. putting the querstrings into a hash may reorder them as well as eliminate patterns like "INSERT A, DELETE A, INSERT A" and turn it into INSERT A, DELETE A"
@@ -99,8 +102,10 @@ function migration_exit($destination = NULL) {
     }
 
     if (variable_get('migration_query_monitor', FALSE)) {
+
       // Log the sql strings to disk.
       if (is_array($valid_queries)) {
+
         if (migration_file_append_data(implode("\n", $querystrings), 'queries.sql')) {
           $output .= t('Migration file saved at !file', array('!file' => realpath($migration_get_filename)));
         }
@@ -127,7 +132,7 @@ function migration_get_filename($file) {
  *   An array containing the query data.
  */
 function migration_global_queries_processor($queries) {
-  foreach ($queries as $query){
+  foreach ($queries as $query) {
     //regex explain: using % instead of /, the 's' extends the match past single lines.
     preg_match("%(?<function>.*)\n\/\* (?<username>.*) : .*\*\/ (?<querystring>.*)%s", $query[0], $matchedquery);
     //strip initial space
@@ -143,7 +148,7 @@ function migration_global_queries_processor($queries) {
 }
 
 function migration_file_append_data($input, $filename) {
-  if(!file_exists(getcwd() . '/' . variable_get('migration_directory_path', file_directory_path() . '/migration/') . $filename)) {
+  if (!file_exists(getcwd() . '/' . variable_get('migration_directory_path', file_directory_path() . '/migration/') . $filename)) {
     $file = file_create_filename($filename, getcwd() . '/' . variable_get('migration_directory_path', file_directory_path() . '/migration'));
   }
   else {
@@ -153,6 +158,7 @@ function migration_file_append_data($input, $filename) {
   $data = file_get_contents($file);
   $data .= $input;
   $return = file_save_data($data, $file, FILE_EXISTS_REPLACE);
+
   return $return;
 }
 
@@ -175,7 +181,7 @@ function migration_filterqueries($querystruct) {
       // First we check our configured table name list.
       // If its in the "do not record list" we ditch it.
       $tablename = migration_get_tablename($query['querystring']);
-      if ((migration_is_table_to_record($tablename))&&(migration_is_valid_function($query['function']))) {
+      if ((migration_is_table_to_record($tablename)) && (migration_is_valid_function($query['function']))) {
       // Secondly we check the configured function list
       // we will delete by function if we know there are functions we dont care about
       // Finally, if we want to filter by username we can.. later.. later..
@@ -186,7 +192,7 @@ function migration_filterqueries($querystruct) {
   return $filteredstruct;
 }
 
-function migration_get_tablename($sqlstring){
+function migration_get_tablename($sqlstring) {
   preg_match("/(INSERT INTO|DELETE FROM|ALTER TABLE|UPDATE|DROP VIEW|CREATE VIEW|DROP TABLE|CREATE TABLE|LOCK TABLES|CREATE DOMAIN|CREATE INDEX|CREATE UNIQUE INDEX|CREATE SEQUENCE|DROP INDEX) (?<tablename>.*?)($| ).*/", $sqlstring, $splitqueries[]);
   return $splitqueries[0]['tablename'];
 }
@@ -205,7 +211,7 @@ function migration_is_table_to_record($tablename) {
   return TRUE;
 }
 
-function migration_is_valid_function($function){
+function migration_is_valid_function($function) {
 
   // TODO: Record them all for now. Get table name list from the database.
   // Hmm.. this is difficult. do we really want to run a slew of regexes against these?
@@ -232,7 +238,7 @@ function migration_is_valid_function($function){
  * @return
  *   TRUE if query begines with a certain keyword.
  */
-function migration_is_select($query) {
+function migration_is_select_or_show($query) {
   $process = FALSE;
 
   if (stripos($query, 'SELECT') === 0 ||
