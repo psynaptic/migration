@@ -314,5 +314,13 @@ function migration_init() {
 }
 
 function migration_footer($main = 0) {
-  return '<div style="float: right;"><p><a id="migration_start_monitor">Start Monitor</a></p><p><a id="migration_stop_monitor">Stop Monitor</a></p></div>';
+  $output = '<div style="float: right; clear: both;" id="migration_monitor_switch">';
+  if (variable_get('migration_query_monitor', FALSE)) {
+    $output .= '<p><a id="migration_stop_monitor">Stop Query Monitor</a></p>';
+  }
+  else {
+    $output .= '<p><a id="migration_start_monitor">Start Query Monitor</a></p>';
+  }
+  $output .= '</div>';
+  return $output;
 }
