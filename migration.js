@@ -1,3 +1,5 @@
+// $Id$
+
 if (Drupal.jsEnabled) {
   $(document).ready(function() {
     $('#migration-start-monitor').click(function() {
