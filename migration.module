@@ -176,7 +176,8 @@ function migration_file_append_data($input, $filename) {
   }
 
   $data = file_get_contents($file);
-  $data .= $input;
+  //Yeah yeah.. that /n is a hack.
+  $data .= $input . "/n";
   $return = file_save_data($data, $file, FILE_EXISTS_REPLACE);
 
   return $return;
