@@ -34,8 +34,30 @@ function migration_settings_form($form_state) {
 /**
  * List of monitored tables.
  */
-function migration_table_list_form($form_state) {
+function migration_tables_list_form($form_state) {
   $form = array();
+  
+  $path = drupal_get_path('module', 'migration');
+  drupal_add_css($path . '/migration.css');
+
+  $form['migration_filter_mode'] = array(
+    '#type' => 'radios',
+    '#title' => t('Filter mode'),
+    '#description' => t('Choose whether tables are included or excluded based on the selection below.'),
+    '#options' => array(0 => 'Exclude', 1 => 'Include'),
+    '#default_value' => variable_get('migration_filter_mode', 0),
+  );
+
+  $form['migration_database_tables'] = array(
+    '#type' => 'checkboxes',
+    '#title' => t('Database tables'),
+    '#description' => t('The description appears usually below the checkboxes.'),
+    '#options' => migration_get_tables(),
+    '#default_value' => variable_get('migration_database_tables', migration_get_default_tables()),
+    '#checkall' => TRUE,
+    '#multicolumn' => array('width' => 4),
+  );
+
   return system_settings_form($form);
 }
 
@@ -56,4 +78,43 @@ function migration_monitor_control($action) {
   else {
     print drupal_json(array('response' => 'Unrecognized action for query monitor controller'));
   }
+}
+
+function migration_get_tables() {
+  $query = db_query('SHOW TABLES');
+  while ($row = db_result($query)) {
+    $tables[$row] = $row;
+  }
+  return $tables;
+}
+
+function migration_get_default_tables() {
+  return array(
+    'cache_views',
+    'cache',
+    'cache_content',
+    'cache_menu',
+    'cache_admin_menu',
+    'cache_update',
+    'cache_block',
+    'cache_filter',
+    'cache_page',
+    'cache_calendar_ical',
+    'cache_form',
+    'history',
+    'menu_router',
+    'menu_links',
+    'watchdogcache',
+    'watchdog',
+    'sessions',
+    'search_dataset',
+    'search_index',
+    'search_keywords_log',
+    'search_total',
+    'accesslog',
+    'devel_queries',
+    'devel_times',
+    'menu_router',
+    'menu_links',
+  );
 }
