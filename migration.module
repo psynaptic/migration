@@ -86,25 +86,25 @@ function migration_exit($destination = NULL) {
 
     $page_queries = migration_global_queries_processor($queries);
     $valid_queries = migration_filterqueries($page_queries);
-
+dpm($page_queries);
     foreach ($valid_queries as $querystruct) {
 
       $functions[$querystruct['function']] = $querystruct['function'];
       $usernames[$querystruct['username']] = $querystruct['username'];
       //Logic fail.. putting the querstrings into a hash may reorder them as well as eliminate patterns like "INSERT A, DELETE A, INSERT A" and turn it into INSERT A, DELETE A"
-      //$querystrings[$querystruct['querystring']] = $querystruct['querystring'];
-      $querystrings[] = $querystruct['querystring'];
-      $tablename = migration_get_tablename($querystruct['querystring']);
+      //$querystrings[$querystruct['query']] = $querystruct['query'];
+      $querystrings[] = $querystruct['query'];
+      $tablename = migration_get_tablename($querystruct['query']);
       $tablenames[$tablename] = $tablename;
 
       // TODO: for debugging - get rid of this later
-      // $funcquery[$querystruct['function'] . $querystruct['querystring']] = $querystruct['function'] . $querystruct['querystring'];
+      // $funcquery[$querystruct['function'] . $querystruct['query']] = $querystruct['function'] . $querystruct['query'];
     }
 
     if (variable_get('migration_query_monitor', FALSE)) {
 
       // Log the sql strings to disk.
-      if (is_array($valid_queries)) {
+      if (is_array($valid_queries) && is_array($querystrings)) {
 
         if (migration_file_append_data(implode("\n", $querystrings), 'queries.sql')) {
           $output .= t('Migration file saved at !file', array('!file' => realpath($migration_get_filename)));
@@ -131,20 +131,23 @@ function migration_get_filename($file) {
  * @return
  *   An array containing the query data.
  */
-function migration_global_queries_processor($queries) {
-  foreach ($queries as $query) {
-    //regex explain: using % instead of /, the 's' extends the match past single lines.
-    preg_match("%(?<function>.*)\n\/\* (?<username>.*) : .*\*\/ (?<querystring>.*)%s", $query[0], $matchedquery);
-    //strip initial space
-    $matchedquery['querystring'] = preg_replace("/^\s*/s", "", $matchedquery['querystring']);
-    //strip linefeeds
-    $matchedquery['querystring'] = preg_replace("/\n/s", "", $matchedquery['querystring']);
+function migration_global_queries_processor() {
+  global $queries;
 
-    $splitqueries[] = $matchedquery;
+  foreach ($queries as $query) {
+
+    // Regex explain: Using % instead of / for readability. The 's' option
+    // extends the match past single lines and query is sometimes multiline.
+    preg_match("%(?<function>.*)\n\/\* (?<username>.*) : .*\*\/ (?<query>.*)%s", $query[0], $match);
+
+    $output[] = array(
+      'function' => $match['function'],
+      'username' => $match['username'],
+      'query'    => trim(str_replace("\n", '', $match[3])), // Strip whitespace.
+    );
   }
 
-  //dprint_r($splitqueries);
-  return $splitqueries;
+  return $output;
 }
 
 function migration_file_append_data($input, $filename) {
@@ -172,15 +175,16 @@ function migration_query_row($sql) {
  * keep.
  */
 function migration_filterqueries($querystruct) {
-  // Filter by querystring
+  $filteredstruct = array();
+
   foreach ($querystruct as $query) {
-    if (!migration_is_select_or_show($query['querystring'])) {
+    if (!migration_is_select_or_show($query['query'])) {
       // its *not* a select, so it will change the database.
       // next lets find out if we care if it changes the db.
 
       // First we check our configured table name list.
       // If its in the "do not record list" we ditch it.
-      $tablename = migration_get_tablename($query['querystring']);
+      $tablename = migration_get_tablename($query['query']);
       if ((migration_is_table_to_record($tablename)) && (migration_is_valid_function($query['function']))) {
       // Secondly we check the configured function list
       // we will delete by function if we know there are functions we dont care about
