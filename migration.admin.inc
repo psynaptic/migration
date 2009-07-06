@@ -69,11 +69,17 @@ function migration_monitor_control($action) {
 
   if ($action == 'start') {
     variable_set('migration_query_monitor', TRUE);
-    print drupal_json(array('response' => 'Migration Query Monitor: RUNNING'));
+    print drupal_json(array(
+      'response' => 'Migration Query Monitor: RUNNING',
+      'divHtml' => '<p><a id="migration_stop_monitor">Stop Query Monitor</a></p>',
+    ));
   }
   elseif ($action == 'stop') {
     variable_set('migration_query_monitor', FALSE);
-    print drupal_json(array('response' => 'Migration Query Monitor: STOPPED'));
+    print drupal_json(array(
+      'response' => 'Migration Query Monitor: STOPPED',
+      'divHtml' => '<p><a id="migration_start_monitor">Start Query Monitor</a></p>',
+    ));
   }
   else {
     print drupal_json(array('response' => 'Unrecognized action for query monitor controller'));
