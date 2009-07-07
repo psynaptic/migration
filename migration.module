@@ -96,11 +96,8 @@ function migration_exit($destination = NULL) {
 
       $functions[$querystruct['function']] = $querystruct['function'];
       $usernames[$querystruct['username']] = $querystruct['username'];
-      //Logic fail.. putting the querstrings into a hash may reorder them as well as eliminate patterns like "INSERT A, DELETE A, INSERT A" and turn it into INSERT A, DELETE A"
-      //$querystrings[$querystruct['query']] = $querystruct['query'];
+
       $querystrings[] = $querystruct['query'];
-      $tablename = migration_get_tablename($querystruct['query']);
-      $tablenames[$tablename] = $tablename;
 
       // TODO: for debugging - get rid of this later
       // $funcquery[$querystruct['function'] . $querystruct['query']] = $querystruct['function'] . $querystruct['query'];
@@ -110,6 +107,9 @@ function migration_exit($destination = NULL) {
 
       // Log the sql strings to disk.
       if (is_array($valid_queries) && is_array($querystrings)) {
+        drupal_set_message("There were " . count($querystrings) . " queries saved");
+        drupal_set_message("There were " . count($page_queries) . " page queries");
+        drupal_set_message("There were " . count($valid_queries) . " valid queries");
 
         if (migration_file_append_data(implode("\n", $querystrings), 'queries.sql')) {
           $output .= t('Queries added to file: !file', array('!file' => realpath(migration_get_filename('queries.sql'))));
@@ -146,8 +146,10 @@ function migration_get_filename($file) {
  * @return
  *   An array containing the query data.
  */
-function migration_global_queries_processor() {
-  global $queries;
+function migration_global_queries_processor($queries) {
+
+  //TODO: Wrapper in a debug toggler
+  drupal_set_message("There were " . count($queries) . " queries processed");
 
   foreach ($queries as $query) {
 
@@ -203,32 +205,61 @@ function migration_file_append_data($input, $filename) {
 function migration_filterqueries($querystruct) {
   $filteredstruct = array();
 
+  $filterselects =0;
+  $filtertables =0;
+  $filtervars =0;
+  $filterfunctions =0;
+
+  $unfiltereds =0;
+
   foreach ($querystruct as $query) {
-    if (!migration_is_select_or_show($query['query'])) {
-      // its *not* a select, so it will change the database.
-      // next lets find out if we care if it changes the db.
 
-      // First we check our configured table name list.
-      // If its in the "do not record list" we ditch it.
-      $tablename = migration_get_tablename($query['query']);
-
-      if ($tablename == 'variable'){
-        //drupal_set_message($query['query']);
-        $variablename = migration_get_variable_from_query($query['query']);
-      }
-
-      if ((migration_is_table_to_record($tablename)) &&
-          (migration_is_valid_function($query['function'])) &&
-          (migration_is_valid_variable_name($variablename)) 
-          ) {
-
-      // Secondly we check the configured function list
-      // we will delete by function if we know there are functions we dont care about
-      // Finally, if we want to filter by username we can.. later.. later..
-        $filteredstruct[] = $query;
-      }
+    // Filter out selects and shows. They dont change the db.
+    if (migration_is_select_or_show($query['query'])) {
+      $filterselects++;
+      continue;
     }
+
+    // Check our configured table name list.
+    // If its in the "do not record list" we ditch it.
+    $tablename = migration_get_tablename($query['query']);
+
+    if (migration_is_table_to_filter($tablename)) {
+      $filtertables++;
+      continue;
+    }
+    // Check if the function name is one we'd like to filter
+    if (migration_is_function_to_filter($query['function'])) {
+      $filterfunctions++;
+      continue;
+    }
+
+    if ($tablename == 'variable') {
+
+      $variablename = migration_get_variable_from_query($query['query']);
+      if (migration_is_variable_to_filter($variablename)) {
+        $filtervars++;
+        continue;
+      }
+
+    }
+            
+    $unfiltereds++;
+
+    $filteredstruct[] = $query;
   }
+
+  //TODO: extraneous debugging information
+  /*
+  print_r("<H1>Num Selects: " . $filterselects);
+  print_r("<BR>Num Tables: " . $filtertables);
+  print_r("<BR>Num Functions: " . $filterfunctions);
+  print_r("<BR>Num Variables: " . $filtervars);
+  print_r("<BR>Num Good: " . $unfiltereds);
+  $total = $unfiltereds + $filterselects + $filterfunctions + $filtervars + $filtertables;
+  print_r("<BR>TOTAL: " . $total);
+  print_r("<BR>SHOULD BE: " . count($querystruct) . "</H1>");
+  */
   return $filteredstruct;
 }
 /**
@@ -249,6 +280,9 @@ function migration_get_variable_from_query($query) {
   elseif (stripos($query, 'INSERT') === 0 ) {
     preg_match("|.*VALUES \('(.*?)'.*|", $query, $splitup);
   }
+  else {
+    drupal_set_message("get var fm qry FAIL:" . $query);
+  }
   return $splitup[1];
 }
 
@@ -262,7 +296,12 @@ function migration_get_variable_from_query($query) {
  */
 function migration_get_tablename($sqlstring) {
   preg_match("/(INSERT INTO|DELETE FROM|ALTER TABLE|UPDATE|DROP VIEW|CREATE VIEW|DROP TABLE|CREATE TABLE|LOCK TABLES|CREATE DOMAIN|CREATE INDEX|CREATE UNIQUE INDEX|CREATE SEQUENCE|DROP INDEX) (?<tablename>.*?)($| ).*/", $sqlstring, $splitqueries[]);
-  return $splitqueries[0]['tablename'];
+  if (strlen($splitqueries[0]['tablename']) < 2) {
+     drupal_set_message("get tablename FAIL:" . $sqlstring);
+  }
+  else {
+    return $splitqueries[0]['tablename'];
+  }
 }
 
 /**
@@ -274,21 +313,22 @@ function migration_get_tablename($sqlstring) {
  *   Boolean value specifying whether or not keep the query
  *   based on the variable name.
  */
-function migration_is_valid_variable_name($variable_name) {
-  // TODO: Record them all for now. Get table name list from the database.
-  // Do we store the good tables or the bad ones?
-  // Record the bad ones.  
+function migration_is_variable_to_filter($variable_name) {
+
   $skip_names = variable_get('migration_variable_name_filter_array', migration_get_default_variable_array());
 
-    // TODO: Debug
   if (in_array($variable_name, $skip_names)) {
-    //drupal_set_message("Variable name skipped:" . $variable_name);
-    return FALSE;
-  }else {
-    //drupal_set_message("Variable name not skipped:" . $variable_name);
+    //TODO: add debug wrappers
+    //drupal_set_message("Variable filtered: " . $variable_name);
+    return TRUE;
   }
-  return TRUE;
+  else {
+    //TODO: add debug wrappers
+    //drupal_set_message("Variable not filtered: " . $variable_name);
+  }
+  return FALSE;
 }
+
 /**
  * Allows filtering by table name.
  *
@@ -297,18 +337,19 @@ function migration_is_valid_variable_name($variable_name) {
  * @return
  *   Boolean value specifying whether or not keep the query.
  */
-function migration_is_table_to_record($tablename) {
-  // TODO: Record them all for now. Get table name list from the database.
-  // Do we store the good tables or the bad ones?
-  // Record the bad ones.  
+function migration_is_table_to_filter($tablename) {
   $skiptables = variable_get('migration_database_table_settings', migration_get_default_tables());
 
   if ($skiptables[$tablename] === $tablename) {
-    // TODO: Debug
-    // print_r ("<H1>irrelevant table $tablename<BR></H1>");
+    //TODO: add debug wrappers
+    //drupal_set_message("Table filtered: " . $tablename);
+    return TRUE;
+  }
+  else {
+    //TODO: add debug wrappers
+    //drupal_set_message("Table not filtered: " . $tablename);
     return FALSE;
   }
-  return TRUE;
 }
 
 /**
@@ -319,11 +360,10 @@ function migration_is_table_to_record($tablename) {
  * @return
  *   Boolean value specifying whether or not to keep the query.
  */
-function migration_is_valid_function($function) {
+function migration_is_function_to_filter($function) {
 
-  // TODO: Record them all for now. Get table name list from the database.
-  // Hmm.. this is difficult. do we really want to run a slew of regexes against these?
-  // perhaps we could sort the regexes by function type..
+  //TODO: Im not sure this is that valuable, but hey, the data's there.
+  //
 
   $skipfunctions = array(
     'system_theme_data',
@@ -331,11 +371,15 @@ function migration_is_valid_function($function) {
   );
 
   if (in_array($function, $skipfunctions)) {
-    // TODO: Debug
-    //print_r ("<H1>irrelevant function $function<BR></H1>");
+    //TODO: add debug wrappers
+    //drupal_set_message("Function filtered: " . $function);
+    return TRUE;
+  }
+  else {
+    //TODO: add debug wrappers
+    //drupal_set_message("Function not filtered: " . $function);
     return FALSE;
   }
-  return TRUE;
 }
 
 /**
