@@ -27,11 +27,11 @@ class MigrationTestCase extends DrupalWebTestCase {
     
     $query = ' SELECT';
     $result = migration_is_select_or_show($query);
-    $this->assertFalse($result, t("Detected that query string did not started with 'SELECT'"));
+    $this->assertFalse($result, t("Detected that query string did not start with 'SELECT'"));
     
     $query = ' SHOW';
     $result = migration_is_select_or_show($query);
-    $this->assertFalse($result, t("Detected that query string did not started with 'SHOW'"));
+    $this->assertFalse($result, t("Detected that query string did not start with 'SHOW'"));
   }
 
 }
