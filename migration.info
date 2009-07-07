@@ -3,3 +3,4 @@ name = Migration
 package = Development
 description = Provides an automated way to keep your different development, staging and production sites in sync.
 core = 6.x
+dependancies[] = devel
