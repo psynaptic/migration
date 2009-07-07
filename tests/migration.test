@@ -1,2 +1,38 @@
 <?php // $Id$
 
+class MigrationTestCase extends DrupalWebTestCase {
+  public static function getInfo() {
+    return array(
+      'name' => t('Migration unit tests'),
+      'description' => t('Test function return values.'),
+      'group' => t('Migration'),
+    );
+  }
+
+  function setUp() {
+    parent::setUp('migration');
+  }
+
+  /**
+   * Test the migration_is_select_or_show() function.
+   */
+  function testMigrationSelectOrShow() {
+    $query = 'SELECT';
+    $result = migration_is_select_or_show($query);
+    $this->assertTrue($result, t("Detected that query string started with 'SELECT'"));
+    
+    $query = 'SHOW';
+    $result = migration_is_select_or_show($query);
+    $this->assertTrue($result, t("Detected that query string started with 'SHOW'"));
+    
+    $query = ' SELECT';
+    $result = migration_is_select_or_show($query);
+    $this->assertFalse($result, t("Detected that query string did not started with 'SELECT'"));
+    
+    $query = ' SHOW';
+    $result = migration_is_select_or_show($query);
+    $this->assertFalse($result, t("Detected that query string did not started with 'SHOW'"));
+  }
+
+}
+
