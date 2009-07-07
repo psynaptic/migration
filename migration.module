@@ -239,19 +239,18 @@ function migration_filterqueries($querystruct) {
  * @return
  *   The variable name.
  */
-function migration_get_variable_from_query($query){
-
-  if (stripos($query, "UPDATE") === 0 ){
+function migration_get_variable_from_query($query) {
+  if (stripos($query, 'UPDATE') === 0 ) {
     preg_match("|.*WHERE name = '(.*)'.*|", $query, $splitup);
-  }elseif (stripos($query, "DELETE") === 0 ){
+  }
+  elseif (stripos($query, 'DELETE') === 0 ) {
     preg_match("|.*WHERE name = '(.*)'.*|", $query, $splitup);
-  }elseif (stripos($query, "INSERT") === 0 ){
+  }
+  elseif (stripos($query, 'INSERT') === 0 ) {
     preg_match("|.*VALUES \('(.*?)'.*|", $query, $splitup);
   }
   return $splitup[1];
 }
-
-
 
 /**
  * Finds the table name in a query.
