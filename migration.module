@@ -158,7 +158,7 @@ function migration_global_queries_processor() {
     $output[] = array(
       'function' => $match['function'],
       'username' => $match['username'],
-      'query'    => str_replace("\n", '', trim($match['query'])), // Strip whitespace.
+      'query'    => str_replace("\n", ' ', trim($match['query'])) . ';', // Strip whitespace.
     );
   }
 
