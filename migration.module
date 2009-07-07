@@ -48,6 +48,16 @@ function migration_menu() {
     'weight' => 1,
   );
 
+  $items['admin/settings/migration/variables'] = array(
+    'title' => 'Filter variables',
+    'type' => MENU_LOCAL_TASK,
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('migration_variables_list_form'),
+    'access arguments' => array('administer migration'),
+    'file' => 'migration.admin.inc',
+    'weight' => 1,
+  );
+
   $items['migration/start'] = array(
     'title' => 'Start monitoring',
     'type' => MENU_CALLBACK,
@@ -203,7 +213,15 @@ function migration_filterqueries($querystruct) {
       // If its in the "do not record list" we ditch it.
       $tablename = migration_get_tablename($query['query']);
 
-      if ((migration_is_table_to_record($tablename)) && (migration_is_valid_function($query['function']))) {
+      if ($tablename == 'variable'){
+        //drupal_set_message($query['query']);
+        $variablename = migration_get_variable_from_query($query['query']);
+      }
+
+      if ((migration_is_table_to_record($tablename)) &&
+          (migration_is_valid_function($query['function'])) &&
+          (migration_is_valid_variable_name($variablename)) 
+          ) {
 
       // Secondly we check the configured function list
       // we will delete by function if we know there are functions we dont care about
@@ -214,6 +232,27 @@ function migration_filterqueries($querystruct) {
   }
   return $filteredstruct;
 }
+/**
+ * Finds the variable name in a query to the variables table.
+ *
+ * @param $sqlstring
+ *   The query from which to extract the variable name.
+ * @return
+ *   The variable name.
+ */
+function migration_get_variable_from_query($query){
+
+  if (stripos($query, "UPDATE") === 0 ){
+    preg_match("|.*WHERE name = '(.*)'.*|", $query, $splitup);
+  }elseif (stripos($query, "DELETE") === 0 ){
+    preg_match("|.*WHERE name = '(.*)'.*|", $query, $splitup);
+  }elseif (stripos($query, "INSERT") === 0 ){
+    preg_match("|.*VALUES \('(.*?)'.*|", $query, $splitup);
+  }
+  return $splitup[1];
+}
+
+
 
 /**
  * Finds the table name in a query.
@@ -228,6 +267,30 @@ function migration_get_tablename($sqlstring) {
   return $splitqueries[0]['tablename'];
 }
 
+/**
+ * Allows filtering by variable name.
+ *
+ * @param $variable_name
+ *   The variable name to check.
+ * @return
+ *   Boolean value specifying whether or not keep the query
+ *   based on the variable name.
+ */
+function migration_is_valid_variable_name($variable_name) {
+  // TODO: Record them all for now. Get table name list from the database.
+  // Do we store the good tables or the bad ones?
+  // Record the bad ones.  
+  $skip_names = variable_get('migration_variable_name_filter_array', migration_get_default_variable_array());
+
+    // TODO: Debug
+  if (in_array($variable_name, $skip_names)) {
+    //drupal_set_message("Variable name skipped:" . $variable_name);
+    return FALSE;
+  }else {
+    //drupal_set_message("Variable name not skipped:" . $variable_name);
+  }
+  return TRUE;
+}
 /**
  * Allows filtering by table name.
  *
@@ -367,6 +430,24 @@ function migration_footer($main = 0) {
 
     return $output;
   }
+}
+/**
+ * Provides default values for variables to exclude from collection.
+ *
+ * @return
+ *   An array of variable names.
+ */
+function migration_get_default_variable_array() {
+  $variables = array(
+    'javascript_parsed',
+    'cache_rebuild',
+    'cache_flush',
+    'menu_rebuild_needed',
+    'admin_menu_rebuild_links',
+    'menu_masks',
+    'menu_expanded',
+    );
+  return ($variables);
 }
 
 /**

@@ -36,6 +36,32 @@ function migration_settings_form($form_state) {
 
   return system_settings_form($form);
 }
+/**
+ * List of monitored variables.
+ */
+function migration_variables_list_form($form_state) {
+  $form = array();
+
+
+  $form['migration_variable_patterns'] = array(
+    '#type' => 'textarea',
+    '#title' => t('Variables'),
+    '#cols' => 40,
+    '#rows' => 5,
+    '#description' => t('Enter in variable names, or regular expressions of queries you do not want'),
+    '#default_value' => variable_get('migration_variable_patterns', implode(",", migration_get_default_variable_array())),
+  );
+
+  $form['#submit'][] = 'migration_variables_list_form_submit';
+  return system_settings_form($form);
+}
+
+function migration_variables_list_form_submit($form, &$form_state){
+    $ignorevars = explode(",",$form_state['values']['migration_variable_patterns']);
+    $varname_filter= array_map('trim', $ignorevars);
+    variable_set('migration_variable_name_filter_array', $varname_filter);
+}
+
 
 /**
  * List of monitored tables.
