@@ -35,4 +35,3 @@ class MigrationTestCase extends DrupalWebTestCase {
   }
 
 }
-
