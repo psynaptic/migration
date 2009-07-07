@@ -482,6 +482,10 @@ function migration_get_default_variable_array() {
     'admin_menu_rebuild_links',
     'menu_masks',
     'menu_expanded',
+    'migration_query_monitor',
+    'migration_filter_mode',
+    'migration_database_tables',
+    'migration_variable_patterns',
     );
   return ($variables);
 }
