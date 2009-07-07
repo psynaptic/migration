@@ -94,25 +94,21 @@ function migration_exit($destination = NULL) {
 
     foreach ($valid_queries as $querystruct) {
 
-      $functions[$querystruct['function']] = $querystruct['function'];
-      $usernames[$querystruct['username']] = $querystruct['username'];
 
       $querystrings[] = $querystruct['query'];
 
       // TODO: for debugging - get rid of this later
-      // $funcquery[$querystruct['function'] . $querystruct['query']] = $querystruct['function'] . $querystruct['query'];
+      //$funcquery[$querystruct['function'] . $querystruct['query']] = $querystruct['function'] . $querystruct['query'];
+      //$functions[$querystruct['function']] = $querystruct['function'];
+      //$usernames[$querystruct['username']] = $querystruct['username'];
     }
 
     if (variable_get('migration_query_monitor', FALSE)) {
 
       // Log the sql strings to disk.
-      if (is_array($valid_queries) && is_array($querystrings)) {
-        drupal_set_message("There were " . count($querystrings) . " queries saved");
-        drupal_set_message("There were " . count($page_queries) . " page queries");
-        drupal_set_message("There were " . count($valid_queries) . " valid queries");
-
-        if (migration_file_append_data(implode("\n", $querystrings), 'queries.sql')) {
-          $output .= t('Queries added to file: !file', array('!file' => realpath(migration_get_filename('queries.sql'))));
+      if (is_array($querystrings)) {
+        if (migration_file_append_data(implode(";\n", $querystrings) . ";", 'queries.sql')) {
+          $output .= t('!querystrings Queries added to file: !file', array('!file' => realpath(migration_get_filename('queries.sql')), '!querystrings' => count($querystrings)));
         }
         else {
           $output .= t('Error saving sql file.');
@@ -148,9 +144,6 @@ function migration_get_filename($file) {
  */
 function migration_global_queries_processor($queries) {
 
-  //TODO: Wrapper in a debug toggler
-  drupal_set_message("There were " . count($queries) . " queries processed");
-
   foreach ($queries as $query) {
 
     // Regex explain: Using % instead of / for readability. The 's' option
@@ -160,7 +153,7 @@ function migration_global_queries_processor($queries) {
     $output[] = array(
       'function' => $match['function'],
       'username' => $match['username'],
-      'query'    => str_replace("\n", ' ', trim($match['query'])) . ';', // Strip whitespace.
+      'query'    => str_replace("\n", ' ', trim($match['query'])), // Strip whitespace.
     );
   }
 
@@ -209,7 +202,6 @@ function migration_filterqueries($querystruct) {
   $filtertables =0;
   $filtervars =0;
   $filterfunctions =0;
-
   $unfiltereds =0;
 
   foreach ($querystruct as $query) {
@@ -228,6 +220,7 @@ function migration_filterqueries($querystruct) {
       $filtertables++;
       continue;
     }
+
     // Check if the function name is one we'd like to filter
     if (migration_is_function_to_filter($query['function'])) {
       $filterfunctions++;
@@ -235,7 +228,6 @@ function migration_filterqueries($querystruct) {
     }
 
     if ($tablename == 'variable') {
-
       $variablename = migration_get_variable_from_query($query['query']);
       if (migration_is_variable_to_filter($variablename)) {
         $filtervars++;
@@ -249,17 +241,18 @@ function migration_filterqueries($querystruct) {
     $filteredstruct[] = $query;
   }
 
-  //TODO: extraneous debugging information
+  //TODO: put some sort of wrapper around this.
+
   /*
-  print_r("<H1>Num Selects: " . $filterselects);
-  print_r("<BR>Num Tables: " . $filtertables);
-  print_r("<BR>Num Functions: " . $filterfunctions);
-  print_r("<BR>Num Variables: " . $filtervars);
-  print_r("<BR>Num Good: " . $unfiltereds);
+  drupal_set_message("Num Selects: " . $filterselects);
+  drupal_set_message("Num Tables: " . $filtertables);
+  drupal_set_message("Num Functions: " . $filterfunctions);
+  drupal_set_message("Num Variables: " . $filtervars);
+  drupal_set_message("Num Good: " . $unfiltereds);
   $total = $unfiltereds + $filterselects + $filterfunctions + $filtervars + $filtertables;
-  print_r("<BR>TOTAL: " . $total);
-  print_r("<BR>SHOULD BE: " . count($querystruct) . "</H1>");
+  drupal_set_message("Total: " . $total);
   */
+  
   return $filteredstruct;
 }
 /**
@@ -281,7 +274,7 @@ function migration_get_variable_from_query($query) {
     preg_match("|.*VALUES \('(.*?)'.*|", $query, $splitup);
   }
   else {
-    drupal_set_message("get var fm qry FAIL:" . $query);
+    //drupal_set_message("get var fm qry FAIL:" . $query);
   }
   return $splitup[1];
 }
@@ -295,9 +288,10 @@ function migration_get_variable_from_query($query) {
  *   The table name.
  */
 function migration_get_tablename($sqlstring) {
+  //This is currently failing due to "DELETE FROM cache" - I think.. this is getting passed blank querystrings;
   preg_match("/(INSERT INTO|DELETE FROM|ALTER TABLE|UPDATE|DROP VIEW|CREATE VIEW|DROP TABLE|CREATE TABLE|LOCK TABLES|CREATE DOMAIN|CREATE INDEX|CREATE UNIQUE INDEX|CREATE SEQUENCE|DROP INDEX) (?<tablename>.*?)($| ).*/", $sqlstring, $splitqueries[]);
   if (strlen($splitqueries[0]['tablename']) < 2) {
-     drupal_set_message("get tablename FAIL:" . $sqlstring);
+     //drupal_set_message("get tablename FAIL: " . $splitqueries[0]);
   }
   else {
     return $splitqueries[0]['tablename'];
