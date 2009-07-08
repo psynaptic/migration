@@ -100,6 +100,7 @@ function migration_exit($destination = NULL) {
       //$usernames[$query_struct['username']] = $query_struct['username'];
     }
 
+    // TODO: Consider using $_GLOBAL['migration_query_monitor'].
     if (variable_get('migration_query_monitor', FALSE)) {
       // Log the sql strings to disk.
       if (is_array($querystrings)) {
@@ -229,17 +230,14 @@ function migration_filter_queries($query_struct) {
     $filtered_struct[] = $query;
   }
 
-  if (variable_get('migration_debug', FALSE)) {
+  _migration_debug("SELECTs: $filter_selects", 'status');
+  _migration_debug("Tables: $filter_tables", 'status');
+  _migration_debug("Functions: $filter_functions", 'status');
+  _migration_debug("Variables: $filter_vars", 'status');
+  _migration_debug("Good: $not_filtered", 'status');
 
-    drupal_set_message('SELECTs: ' . $filter_selects);
-    drupal_set_message('Tables: ' . $filter_tables);
-    drupal_set_message('Functions: ' . $filter_functions);
-    drupal_set_message('Variables: ' . $filter_vars);
-    drupal_set_message('Good: ' . $not_filtered);
-
-    $total = $not_filtered + $filter_selects + $filter_functions + $filter_vars + $filter_tables;
-    drupal_set_message('Total: ' . $total);
-  }
+  $total = $not_filtered + $filter_selects + $filter_functions + $filter_vars + $filter_tables;
+  _migration_debug("Total: $total", 'status');
 
   return $filtered_struct;
 }
@@ -263,9 +261,7 @@ function migration_get_variable_from_query($query) {
     preg_match("|.*VALUES \('(.*?)'.*|", $query, $match);
   }
   else {
-    if (variable_get('migration_debug', FALSE)) {
-      drupal_set_message('Failed to get variable from query: ' . $query);
-    }
+    _migration_debug("Failed to get variable from query: $query", 'error');
   }
 
   return $match[1];
@@ -283,9 +279,7 @@ function migration_get_tablename($query) {
   //This is currently failing due to "DELETE FROM cache" - I think.. this is getting passed blank querystrings;
   preg_match("/(INSERT INTO|DELETE FROM|ALTER TABLE|UPDATE|DROP VIEW|CREATE VIEW|DROP TABLE|CREATE TABLE|LOCK TABLES|CREATE DOMAIN|CREATE INDEX|CREATE UNIQUE INDEX|CREATE SEQUENCE|DROP INDEX) (?<tablename>.*?)($| ).*/", $query, $match[]);
   if (strlen($match[0]['tablename']) < 2) {
-    if (variable_get('migration_debug', FALSE)) {
-      drupal_set_message('Failed to get table name from query: ' . $match[0]);
-    }
+    _migration_debug("Failed to get table name from query: $match[0]", 'error');
   }
   else {
     return $match[0]['tablename'];
@@ -305,17 +299,13 @@ function migration_is_variable_to_filter($variable_name) {
   $skip_names = variable_get('migration_variable_name_filter_array', migration_get_default_variable_array());
 
   if (in_array($variable_name, $skip_names)) {
-    if (variable_get('migration_debug', FALSE)) {
-      drupal_set_message('Variable filtered: ' . $variable_name);
-    }
+    _migration_debug("Variable filtered: $variable_name", 'notice');
     return TRUE;
   }
   else {
-    if (variable_get('migration_debug', FALSE)) {
-      drupal_set_message('Variable not filtered: ' . $variable_name);
-    }
+    _migration_debug("Variable not filtered: $variable_name", 'notice');
+    return FALSE;
   }
-  return FALSE;
 }
 
 /**
@@ -330,15 +320,11 @@ function migration_is_table_to_filter($table_name) {
   $skip_tables = variable_get('migration_database_table_settings', migration_get_default_tables());
 
   if ($skip_tables[$table_name] === $table_name) {
-    if (variable_get('migration_debug', FALSE)) {
-      drupal_set_message('Table filtered: ' . $table_name);
-    }
+    _migration_debug("Table filtered: $table_name", 'notice');
     return TRUE;
   }
   else {
-    if (variable_get('migration_debug', FALSE)) {
-      drupal_set_message('Table not filtered: ' . $table_name);
-    }
+    _migration_debug("Table not filtered: $table_name", 'notice');
     return FALSE;
   }
 }
@@ -351,22 +337,18 @@ function migration_is_table_to_filter($table_name) {
  * @return
  *   Boolean value specifying whether or not to keep the query.
  */
-function migration_is_function_to_filter($function) {
+function migration_is_function_to_filter($function) {  
   $skip_functions = array(
     'system_theme_data',
     'module_rebuild_cache',
   );
 
   if (in_array($function, $skip_functions)) {
-    if (variable_get('migration_debug', FALSE)) {
-      drupal_set_message('Function filtered: ' . $function);
-    }
+    _migration_debug("Function filtered: $function", 'notice');
     return TRUE;
   }
   else {
-    if (variable_get('migration_debug', FALSE)) {
-      drupal_set_message('Function not filtered: ' . $function);
-    }
+    _migration_debug("Function not filtered: $function", 'notice');
     return FALSE;
   }
 }
@@ -522,4 +504,10 @@ function migration_get_default_tables() {
     'menu_links',
   );
   return array_combine($tables, $tables);
+}
+
+function _migration_debug($message = '', $type = '') {
+  if (variable_get('migration_debug', FALSE)) {
+    drupal_set_message($message, $type);
+  }
 }
