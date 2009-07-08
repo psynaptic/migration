@@ -18,20 +18,22 @@ function migration_settings_form($form_state) {
 
   // Build the form
   $form = array();
-
   $form['migration_directory_path'] = array(
     '#type' => 'textfield',
-    '#title' => t('Migration Cache Path'),
+    '#title' => t('Migration cache path'),
     '#description' => t('Enter a writable directory where migration cache files are stored.'),
     '#default_value' => variable_get('migration_directory_path', $default_directory),
   );
-
-  $form['migration_hook_update_pageviews'] = array(
-    '#type' => 'radios',
-    '#title' => t('hook_update_N pageviews'),
+  $form['migration_display_hook_update'] = array(
+    '#type' => 'checkbox',
+    '#title' => t('Display hook_update_N'),
     '#description' => t('Display hook_update_N php code in the status message.'),
-    '#options' => array(0 => 'Hide', 1 => 'Show'),
-    '#default_value' => variable_get('migration_hook_update_pageviews', 0),
+    '#default_value' => variable_get('migration_display_hook_update', 0),
+  );
+  $form['migration_debug'] = array(
+    '#type' => 'checkbox',
+    '#title' => t('Debug mode'),
+    '#default_value' => variable_get('migration_debug', FALSE),
   );
 
   return system_settings_form($form);

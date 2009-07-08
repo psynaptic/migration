@@ -6,7 +6,7 @@
  *
  * The Migration module is intended to help keep development, staging and
  * production databases in sync. This is done by collecting queries and
- * formatting them as a migration_filter_queries function for running on the target
+ * formatting them as a hook_update_N function for running on the target
  * site.
  */
 
@@ -281,7 +281,7 @@ function migration_get_variable_from_query($query) {
  */
 function migration_get_tablename($query) {
   //This is currently failing due to "DELETE FROM cache" - I think.. this is getting passed blank querystrings;
-  preg_match("/(INSERT INTO|DELETE FROM|ALTER TABLE|UPDATE|DROP VIEW|CREATE VIEW|DROP TABLE|CREATE TABLE|LOCK TABLES|CREATE DOMAIN|CREATE INDEX|CREATE UNIQUE INDEX|CREATE SEQUENCE|DROP INDEX) (?<tablename>.*?)($| ).*/", $query, $match);
+  preg_match("/(INSERT INTO|DELETE FROM|ALTER TABLE|UPDATE|DROP VIEW|CREATE VIEW|DROP TABLE|CREATE TABLE|LOCK TABLES|CREATE DOMAIN|CREATE INDEX|CREATE UNIQUE INDEX|CREATE SEQUENCE|DROP INDEX) (?<tablename>.*?)($| ).*/", $query, $match[]);
   if (strlen($match[0]['tablename']) < 2) {
     if (variable_get('migration_debug', FALSE)) {
       drupal_set_message('Failed to get table name from query: ' . $match[0]);
@@ -394,7 +394,7 @@ function migration_is_select_or_show($query) {
  * @param $queries
  *   An array of all queries collected.
  * @return
- *   HTML displaying the formatted migration_filter_queries function.
+ *   HTML displaying the formatted hook_update_N function.
  */
 function migration_format_update_hook($queries) {
   global $queries;
@@ -423,7 +423,7 @@ function migration_format_update_hook($queries) {
 }
 
 /**
- * Retrieves the number for the next update used in migration_filter_queries.
+ * Retrieves the number for the next update used in hook_update_N.
  */
 function migration_get_next_id() {
   // TODO: Retrieve next update N from system table.
